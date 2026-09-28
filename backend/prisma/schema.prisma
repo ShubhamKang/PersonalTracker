@@ -1,0 +1,133 @@
+// Prisma schema for Personal Tracker
+// See docs/02-design.md for the full data model rationale.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String? // null if Google-only
+  googleId     String?  @unique
+  timezone     String   @default("Asia/Kolkata")
+  createdAt    DateTime @default(now())
+
+  pushTokens PushToken[]
+  sections   Section[]
+  goals      Goal[]
+  todos      DailyTodo[]
+  notes      Note[]
+  devItems   DevItem[]
+}
+
+model PushToken {
+  id       String @id @default(cuid())
+  userId   String
+  token    String @unique
+  platform String // ios | android
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Section {
+  id                   String  @id @default(cuid())
+  userId               String
+  name                 String
+  notificationsEnabled Boolean @default(false)
+  reminderTime         String? // "21:30"
+
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habits HabitTemplate[]
+
+  @@index([userId])
+}
+
+model HabitTemplate {
+  id        String @id @default(cuid())
+  sectionId String
+  title     String
+  weekday   Int // 1=Mon .. 7=Sun (ISO)
+
+  section     Section           @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  completions HabitCompletion[]
+
+  @@index([sectionId])
+}
+
+model HabitCompletion {
+  id              String   @id @default(cuid())
+  habitTemplateId String
+  date            String // user-local "YYYY-MM-DD"
+  completedAt     DateTime @default(now())
+
+  habit HabitTemplate @relation(fields: [habitTemplateId], references: [id], onDelete: Cascade)
+
+  @@unique([habitTemplateId, date])
+}
+
+model Goal {
+  id        String  @id @default(cuid())
+  userId    String
+  scope     String // WEEKLY | MONTHLY
+  category  String // STUDY | OTHER
+  title     String
+  done      Boolean @default(false)
+  periodKey String // "2026-W40" | "2026-09"
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, scope])
+}
+
+model DailyTodo {
+  id     String  @id @default(cuid())
+  userId String
+  date   String // "YYYY-MM-DD"
+  title  String
+  done   Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model Note {
+  id      String  @id @default(cuid())
+  userId  String
+  title   String
+  content String
+  pinned  Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model DevItem {
+  id       String  @id @default(cuid())
+  userId   String
+  type     String // PERSONALITY | SKILL
+  title    String
+  progress Int     @default(0) // 0-100
+  notes    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model NotificationLog {
+  id        String   @id @default(cuid())
+  sectionId String
+  date      String // "YYYY-MM-DD"
+  sentAt    DateTime @default(now())
+
+  @@unique([sectionId, date])
+}
