@@ -66,6 +66,19 @@ export interface Todo {
   done: boolean;
 }
 
+export type GoalScope = 'WEEKLY' | 'MONTHLY';
+export type GoalCategory = 'STUDY' | 'OTHER';
+
+export interface Goal {
+  id: string;
+  userId: string;
+  scope: GoalScope;
+  category: GoalCategory;
+  title: string;
+  done: boolean;
+  periodKey: string;
+}
+
 export const api = {
   signup: (email: string, password: string, timezone?: string) =>
     request<AuthResponse>('/auth/signup', {
@@ -99,6 +112,25 @@ export const api = {
 
   deleteTodo: (id: string) =>
     request<{ ok: true }>(`/todos/${id}`, { method: 'DELETE', auth: true }),
+
+  // --- Goals ---
+  listGoals: (scope: GoalScope) =>
+    request<Goal[]>(`/goals?scope=${scope}`, { auth: true }),
+
+  createGoal: (scope: GoalScope, category: GoalCategory, title: string) =>
+    request<Goal>('/goals', {
+      method: 'POST',
+      auth: true,
+      body: { scope, category, title },
+    }),
+
+  updateGoal: (
+    id: string,
+    data: { title?: string; done?: boolean; category?: GoalCategory },
+  ) => request<Goal>(`/goals/${id}`, { method: 'PATCH', auth: true, body: data }),
+
+  deleteGoal: (id: string) =>
+    request<{ ok: true }>(`/goals/${id}`, { method: 'DELETE', auth: true }),
 };
 
 export { API_URL };

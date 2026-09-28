@@ -4,9 +4,15 @@ import { PrismaService } from './common/prisma.service';
 import { HealthController } from './health.controller';
 import { AuthModule } from './auth/auth.module';
 import { TodosModule } from './todos/todos.module';
+import { GoalsModule } from './goals/goals.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), AuthModule, TodosModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    AuthModule,
+    TodosModule,
+    GoalsModule,
+  ],
   controllers: [HealthController],
   providers: [PrismaService],
 })
