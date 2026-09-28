@@ -93,6 +93,22 @@ export interface DashboardSummary {
   monthlyGoals: Progress;
 }
 
+export interface HabitTemplate {
+  id: string;
+  sectionId: string;
+  title: string;
+  weekday: number; // 1=Mon .. 7=Sun
+}
+
+export interface Section {
+  id: string;
+  userId: string;
+  name: string;
+  notificationsEnabled: boolean;
+  reminderTime: string | null;
+  habits: HabitTemplate[];
+}
+
 export const api = {
   signup: (email: string, password: string, timezone?: string) =>
     request<AuthResponse>('/auth/signup', {
@@ -149,6 +165,42 @@ export const api = {
   // --- Dashboard ---
   dashboardSummary: () =>
     request<DashboardSummary>('/dashboard/summary', { auth: true }),
+
+  // --- Sections & Habits ---
+  listSections: () => request<Section[]>('/sections', { auth: true }),
+
+  createSection: (name: string) =>
+    request<Section>('/sections', { method: 'POST', auth: true, body: { name } }),
+
+  updateSection: (
+    id: string,
+    data: {
+      name?: string;
+      notificationsEnabled?: boolean;
+      reminderTime?: string;
+    },
+  ) =>
+    request<Section>(`/sections/${id}`, {
+      method: 'PATCH',
+      auth: true,
+      body: data,
+    }),
+
+  deleteSection: (id: string) =>
+    request<{ ok: true }>(`/sections/${id}`, { method: 'DELETE', auth: true }),
+
+  createHabit: (sectionId: string, title: string, weekday: number) =>
+    request<HabitTemplate>(`/sections/${sectionId}/habits`, {
+      method: 'POST',
+      auth: true,
+      body: { title, weekday },
+    }),
+
+  deleteHabit: (habitId: string) =>
+    request<{ ok: true }>(`/habits/${habitId}`, {
+      method: 'DELETE',
+      auth: true,
+    }),
 };
 
 export { API_URL };
