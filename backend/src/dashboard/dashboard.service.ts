@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
 import { UsersService } from '../users/users.service';
 import { GoalsService } from '../goals/goals.service';
+import { HabitsService } from '../habits/habits.service';
 import { todayDate, currentWeekKey, currentMonthKey } from '../common/date.util';
 
 export interface DashboardSummary {
@@ -9,6 +10,7 @@ export interface DashboardSummary {
   weekKey: string;
   monthKey: string;
   todos: { total: number; done: number };
+  habits: { total: number; done: number };
   weeklyGoals: { total: number; done: number };
   monthlyGoals: { total: number; done: number };
 }
@@ -19,6 +21,7 @@ export class DashboardService {
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
     private readonly goals: GoalsService,
+    private readonly habits: HabitsService,
   ) {}
 
   async summary(userId: string): Promise<DashboardSummary> {
@@ -31,6 +34,9 @@ export class DashboardService {
       where: { userId, date },
       select: { done: true },
     });
+
+    // Today's due habits (weekday-matched, with completion status).
+    const dueHabits = await this.habits.dueToday(userId);
 
     // Goals via GoalsService so carry-over is applied consistently.
     const weekly = await this.goals.list(userId, 'WEEKLY');
@@ -46,6 +52,7 @@ export class DashboardService {
       weekKey: currentWeekKey(timezone),
       monthKey: currentMonthKey(timezone),
       todos: count(todos),
+      habits: count(dueHabits),
       weeklyGoals: count(weekly),
       monthlyGoals: count(monthly),
     };

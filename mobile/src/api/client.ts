@@ -89,6 +89,7 @@ export interface DashboardSummary {
   weekKey: string;
   monthKey: string;
   todos: Progress;
+  habits: Progress;
   weeklyGoals: Progress;
   monthlyGoals: Progress;
 }

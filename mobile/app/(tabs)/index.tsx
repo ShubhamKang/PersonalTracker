@@ -165,6 +165,11 @@ export default function TodayScreen() {
 
       <View style={styles.cards}>
         <ProgressCard
+          label="Habits"
+          done={habits.filter((h) => h.done).length}
+          total={habits.length}
+        />
+        <ProgressCard
           label="To-dos"
           done={todos.filter((t) => t.done).length}
           total={todos.length}
