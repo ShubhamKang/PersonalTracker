@@ -53,6 +53,11 @@ export class HabitsController {
   }
 
   // --- Habit templates ---
+  @Get('habits/today')
+  dueToday(@CurrentUser() user: AuthUser) {
+    return this.habits.dueToday(user.userId);
+  }
+
   @Post('sections/:id/habits')
   createHabit(
     @CurrentUser() user: AuthUser,
@@ -79,5 +84,15 @@ export class HabitsController {
   @Delete('habits/:id')
   removeHabit(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.habits.remove(user.userId, id);
+  }
+
+  @Post('habits/:id/complete')
+  complete(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.habits.complete(user.userId, id);
+  }
+
+  @Delete('habits/:id/complete')
+  uncomplete(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.habits.uncomplete(user.userId, id);
   }
 }

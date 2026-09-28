@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '../../src/context/auth-context';
-import { api, Todo, DashboardSummary } from '../../src/api/client';
+import { api, Todo, DashboardSummary, DueHabit } from '../../src/api/client';
 
 function ProgressCard({
   label,
@@ -37,6 +37,7 @@ export default function TodayScreen() {
   const { user, logout } = useAuth();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [habits, setHabits] = useState<DueHabit[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -44,12 +45,14 @@ export default function TodayScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [list, sum] = await Promise.all([
+      const [list, sum, due] = await Promise.all([
         api.listTodayTodos(),
         api.dashboardSummary(),
+        api.habitsToday(),
       ]);
       setTodos(list);
       setSummary(sum);
+      setHabits(due);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to load');
     }
@@ -112,6 +115,42 @@ export default function TodayScreen() {
     }
   };
 
+  const toggleHabit = async (habit: DueHabit) => {
+    const nextDone = !habit.done;
+    // Optimistic: update done + nudge streak for immediate feedback.
+    setHabits((prev) =>
+      prev.map((h) =>
+        h.id === habit.id
+          ? {
+              ...h,
+              done: nextDone,
+              streak: nextDone ? h.streak + 1 : Math.max(0, h.streak - 1),
+            }
+          : h,
+      ),
+    );
+    try {
+      if (nextDone) {
+        await api.completeHabit(habit.id);
+      } else {
+        await api.uncompleteHabit(habit.id);
+      }
+    } catch {
+      setHabits((prev) => prev.map((h) => (h.id === habit.id ? habit : h)));
+      Alert.alert('Error', 'Failed to update habit.');
+    }
+  };
+
+  // Group due habits by section for display.
+  const habitSections = Array.from(
+    habits.reduce((map, h) => {
+      const arr = map.get(h.sectionName) ?? [];
+      arr.push(h);
+      map.set(h.sectionName, arr);
+      return map;
+    }, new Map<string, DueHabit[]>()),
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -169,6 +208,47 @@ export default function TodayScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
+          ListHeaderComponent={
+            <View>
+              {habitSections.length > 0 && (
+                <View style={styles.habitsBlock}>
+                  <Text style={styles.blockHeading}>TODAY'S HABITS</Text>
+                  {habitSections.map(([sectionName, items]) => (
+                    <View key={sectionName} style={styles.habitSection}>
+                      <Text style={styles.habitSectionName}>{sectionName}</Text>
+                      {items.map((h) => (
+                        <Pressable
+                          key={h.id}
+                          style={styles.item}
+                          onPress={() => toggleHabit(h)}
+                        >
+                          <View style={styles.itemMain}>
+                            <View
+                              style={[styles.check, h.done && styles.checkDone]}
+                            >
+                              {h.done && <Text style={styles.checkMark}>✓</Text>}
+                            </View>
+                            <Text
+                              style={[
+                                styles.itemText,
+                                h.done && styles.itemDone,
+                              ]}
+                            >
+                              {h.title}
+                            </Text>
+                          </View>
+                          {h.streak > 0 && (
+                            <Text style={styles.streak}>🔥 {h.streak}</Text>
+                          )}
+                        </Pressable>
+                      ))}
+                    </View>
+                  ))}
+                </View>
+              )}
+              <Text style={styles.blockHeading}>TO-DOS</Text>
+            </View>
+          }
           ListEmptyComponent={
             <Text style={styles.empty}>Nothing for today yet. Add one above.</Text>
           }
@@ -215,6 +295,24 @@ const styles = StyleSheet.create({
   cardLabel: { color: '#64748b', fontSize: 12, fontWeight: '600' },
   cardValue: { fontSize: 22, fontWeight: '700', color: '#0f172a', marginTop: 4 },
   cardValueDone: { color: '#22c55e' },
+  habitsBlock: { marginBottom: 12 },
+  blockHeading: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94a3b8',
+    letterSpacing: 1,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  habitSection: { marginBottom: 8 },
+  habitSectionName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563eb',
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  streak: { color: '#f97316', fontWeight: '700', fontSize: 13 },
   addRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   input: {
     flex: 1,

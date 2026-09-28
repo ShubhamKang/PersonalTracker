@@ -109,6 +109,16 @@ export interface Section {
   habits: HabitTemplate[];
 }
 
+export interface DueHabit {
+  id: string;
+  sectionId: string;
+  sectionName: string;
+  title: string;
+  weekday: number;
+  done: boolean;
+  streak: number;
+}
+
 export const api = {
   signup: (email: string, password: string, timezone?: string) =>
     request<AuthResponse>('/auth/signup', {
@@ -198,6 +208,20 @@ export const api = {
 
   deleteHabit: (habitId: string) =>
     request<{ ok: true }>(`/habits/${habitId}`, {
+      method: 'DELETE',
+      auth: true,
+    }),
+
+  habitsToday: () => request<DueHabit[]>('/habits/today', { auth: true }),
+
+  completeHabit: (habitId: string) =>
+    request<{ ok: true }>(`/habits/${habitId}/complete`, {
+      method: 'POST',
+      auth: true,
+    }),
+
+  uncompleteHabit: (habitId: string) =>
+    request<{ ok: true }>(`/habits/${habitId}/complete`, {
       method: 'DELETE',
       auth: true,
     }),
