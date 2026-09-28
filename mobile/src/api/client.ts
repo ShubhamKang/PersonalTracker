@@ -1,0 +1,84 @@
+import { getToken } from '../lib/token-storage';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+
+export interface ApiError {
+  statusCode: number;
+  message: string | string[];
+  error?: string;
+}
+
+async function request<T>(
+  path: string,
+  options: { method?: string; body?: unknown; auth?: boolean } = {},
+): Promise<T> {
+  const { method = 'GET', body, auth = false } = options;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (auth) {
+    const token = await getToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
+  const res = await fetch(`${API_URL}${path}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!res.ok) {
+    const err = (data ?? {}) as ApiError;
+    const msg = Array.isArray(err.message)
+      ? err.message.join(', ')
+      : err.message ?? `Request failed (${res.status})`;
+    throw new Error(msg);
+  }
+
+  return data as T;
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  user: { id: string; email: string; timezone: string };
+}
+
+export interface MeResponse {
+  id: string;
+  email: string;
+  timezone: string;
+  hasPassword: boolean;
+  googleLinked: boolean;
+  createdAt: string;
+}
+
+export const api = {
+  signup: (email: string, password: string, timezone?: string) =>
+    request<AuthResponse>('/auth/signup', {
+      method: 'POST',
+      body: { email, password, timezone },
+    }),
+
+  login: (email: string, password: string) =>
+    request<AuthResponse>('/auth/login', {
+      method: 'POST',
+      body: { email, password },
+    }),
+
+  me: () => request<MeResponse>('/auth/me', { auth: true }),
+
+  registerPushToken: (token: string, platform: 'ios' | 'android') =>
+    request<{ ok: true }>('/auth/push-token', {
+      method: 'POST',
+      auth: true,
+      body: { token, platform },
+    }),
+};
+
+export { API_URL };
