@@ -58,6 +58,14 @@ export interface MeResponse {
   createdAt: string;
 }
 
+export interface Todo {
+  id: string;
+  userId: string;
+  date: string;
+  title: string;
+  done: boolean;
+}
+
 export const api = {
   signup: (email: string, password: string, timezone?: string) =>
     request<AuthResponse>('/auth/signup', {
@@ -79,6 +87,18 @@ export const api = {
       auth: true,
       body: { token, platform },
     }),
+
+  // --- Todos ---
+  listTodayTodos: () => request<Todo[]>('/todos/today', { auth: true }),
+
+  createTodo: (title: string) =>
+    request<Todo>('/todos', { method: 'POST', auth: true, body: { title } }),
+
+  updateTodo: (id: string, data: { title?: string; done?: boolean }) =>
+    request<Todo>(`/todos/${id}`, { method: 'PATCH', auth: true, body: data }),
+
+  deleteTodo: (id: string) =>
+    request<{ ok: true }>(`/todos/${id}`, { method: 'DELETE', auth: true }),
 };
 
 export { API_URL };
