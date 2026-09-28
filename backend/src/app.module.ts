@@ -5,6 +5,7 @@ import { HealthController } from './health.controller';
 import { AuthModule } from './auth/auth.module';
 import { TodosModule } from './todos/todos.module';
 import { GoalsModule } from './goals/goals.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { GoalsModule } from './goals/goals.module';
     AuthModule,
     TodosModule,
     GoalsModule,
+    DashboardModule,
   ],
   controllers: [HealthController],
   providers: [PrismaService],

@@ -79,6 +79,20 @@ export interface Goal {
   periodKey: string;
 }
 
+export interface Progress {
+  total: number;
+  done: number;
+}
+
+export interface DashboardSummary {
+  date: string;
+  weekKey: string;
+  monthKey: string;
+  todos: Progress;
+  weeklyGoals: Progress;
+  monthlyGoals: Progress;
+}
+
 export const api = {
   signup: (email: string, password: string, timezone?: string) =>
     request<AuthResponse>('/auth/signup', {
@@ -131,6 +145,10 @@ export const api = {
 
   deleteGoal: (id: string) =>
     request<{ ok: true }>(`/goals/${id}`, { method: 'DELETE', auth: true }),
+
+  // --- Dashboard ---
+  dashboardSummary: () =>
+    request<DashboardSummary>('/dashboard/summary', { auth: true }),
 };
 
 export { API_URL };

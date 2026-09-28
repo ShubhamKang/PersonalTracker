@@ -11,11 +11,32 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '../../src/context/auth-context';
-import { api, Todo } from '../../src/api/client';
+import { api, Todo, DashboardSummary } from '../../src/api/client';
+
+function ProgressCard({
+  label,
+  done,
+  total,
+}: {
+  label: string;
+  done: number;
+  total: number;
+}) {
+  const allDone = total > 0 && done === total;
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardLabel}>{label}</Text>
+      <Text style={[styles.cardValue, allDone && styles.cardValueDone]}>
+        {done}/{total}
+      </Text>
+    </View>
+  );
+}
 
 export default function TodayScreen() {
   const { user, logout } = useAuth();
   const [todos, setTodos] = useState<Todo[]>([]);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -23,8 +44,12 @@ export default function TodayScreen() {
 
   const load = useCallback(async () => {
     try {
-      const list = await api.listTodayTodos();
+      const [list, sum] = await Promise.all([
+        api.listTodayTodos(),
+        api.dashboardSummary(),
+      ]);
       setTodos(list);
+      setSummary(sum);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to load');
     }
@@ -99,6 +124,24 @@ export default function TodayScreen() {
         </Pressable>
       </View>
 
+      <View style={styles.cards}>
+        <ProgressCard
+          label="To-dos"
+          done={todos.filter((t) => t.done).length}
+          total={todos.length}
+        />
+        <ProgressCard
+          label="Weekly"
+          done={summary?.weeklyGoals.done ?? 0}
+          total={summary?.weeklyGoals.total ?? 0}
+        />
+        <ProgressCard
+          label="Monthly"
+          done={summary?.monthlyGoals.done ?? 0}
+          total={summary?.monthlyGoals.total ?? 0}
+        />
+      </View>
+
       <View style={styles.addRow}>
         <TextInput
           style={styles.input}
@@ -161,6 +204,17 @@ const styles = StyleSheet.create({
   title: { fontSize: 32, fontWeight: '700' },
   muted: { color: '#666', marginTop: 2 },
   logout: { color: '#ef4444', fontWeight: '600' },
+  cards: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  card: {
+    flex: 1,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+  },
+  cardLabel: { color: '#64748b', fontSize: 12, fontWeight: '600' },
+  cardValue: { fontSize: 22, fontWeight: '700', color: '#0f172a', marginTop: 4 },
+  cardValueDone: { color: '#22c55e' },
   addRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   input: {
     flex: 1,
