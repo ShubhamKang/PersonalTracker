@@ -5,6 +5,7 @@ import { UsersService } from '../users/users.service';
 import { currentWeekday, todayDate } from '../common/date.util';
 import { DateTime } from 'luxon';
 import { buildMissedMessage } from './message-builder';
+import { isReminderDue } from './reminder-window';
 import { PushMessage, PushTransport, PUSH_TRANSPORT } from './push.transport';
 
 @Injectable()
@@ -17,29 +18,6 @@ export class NotificationsService {
     private readonly users: UsersService,
     @Inject(PUSH_TRANSPORT) private readonly transport: PushTransport,
   ) {}
-
-  /**
-   * True if the section's reminderTime falls within the window
-   * (windowStart, now] in the user's timezone — i.e. it just became due.
-   * windowMinutes should match the scheduler cadence.
-   */
-  private isReminderDue(
-    reminderTime: string,
-    timezone: string,
-    windowMinutes: number,
-    now: DateTime = DateTime.now(),
-  ): boolean {
-    const local = now.setZone(timezone);
-    const [h, m] = reminderTime.split(':').map((x) => parseInt(x, 10));
-    const reminder = local.set({
-      hour: h,
-      minute: m,
-      second: 0,
-      millisecond: 0,
-    });
-    const diffMin = local.diff(reminder, 'minutes').minutes;
-    return diffMin >= 0 && diffMin < windowMinutes;
-  }
 
   /**
    * Evaluate one user's notification-enabled sections and send reminders for
@@ -85,7 +63,7 @@ export class NotificationsService {
       }
       const due =
         opts.ignoreWindow ||
-        this.isReminderDue(section.reminderTime, timezone, windowMinutes, now);
+        isReminderDue(section.reminderTime, timezone, windowMinutes, now);
       if (!due) {
         continue;
       }
