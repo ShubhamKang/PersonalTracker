@@ -94,6 +94,23 @@ export interface DashboardSummary {
   monthlyGoals: Progress;
 }
 
+export interface HabitReview {
+  title: string;
+  scheduled: number;
+  completed: number;
+}
+
+export interface WeeklyReview {
+  weekStart: string;
+  weekEnd: string;
+  todos: Progress;
+  weeklyGoals: Progress;
+  monthlyGoals: Progress;
+  habits: Progress;
+  habitBreakdown: HabitReview[];
+  completionRate: number; // 0..100
+}
+
 export interface HabitTemplate {
   id: string;
   sectionId: string;
@@ -195,6 +212,12 @@ export const api = {
   // --- Dashboard ---
   dashboardSummary: () =>
     request<DashboardSummary>('/dashboard/summary', { auth: true }),
+
+  weeklyReview: () =>
+    request<WeeklyReview>('/dashboard/review', { auth: true }),
+
+  // --- Export ---
+  exportData: () => request<unknown>('/export', { auth: true }),
 
   // --- Sections & Habits ---
   listSections: () => request<Section[]>('/sections', { auth: true }),
