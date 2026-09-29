@@ -1,15 +1,9 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { Link } from 'expo-router';
 import { useAuth } from '../../src/context/auth-context';
+import { Button, TextField } from '../../src/components';
+import { colors, spacing, typography } from '../../src/theme/theme';
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -35,28 +29,20 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Welcome back</Text>
-      <TextInput
-        style={styles.input}
+      <TextField
         placeholder="Email"
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
       />
-      <TextInput
-        style={styles.input}
+      <TextField
         placeholder="Password"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
       />
-      <Pressable style={styles.button} onPress={onSubmit} disabled={busy}>
-        {busy ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Log in</Text>
-        )}
-      </Pressable>
+      <Button title="Log in" onPress={onSubmit} loading={busy} style={styles.button} />
       <View style={styles.row}>
         <Text style={styles.muted}>No account? </Text>
         <Link href="/(auth)/signup" style={styles.link}>
@@ -68,24 +54,16 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12 },
-  title: { fontSize: 28, fontWeight: '700', marginBottom: 12 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    padding: 14,
-    fontSize: 16,
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: spacing.xxl,
+    gap: spacing.md,
+    backgroundColor: colors.background,
   },
-  button: {
-    backgroundColor: '#2563eb',
-    padding: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  row: { flexDirection: 'row', justifyContent: 'center', marginTop: 8 },
-  muted: { color: '#666' },
-  link: { color: '#2563eb', fontWeight: '600' },
+  title: { ...typography.screenTitle, fontSize: 28, marginBottom: spacing.md },
+  button: { marginTop: spacing.xs },
+  row: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.sm },
+  muted: { color: colors.muted },
+  link: { color: colors.primary, fontWeight: '600' },
 });
