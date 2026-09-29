@@ -120,6 +120,25 @@ export interface DueHabit {
   streak: number;
 }
 
+export interface Note {
+  id: string;
+  userId: string;
+  title: string;
+  content: string;
+  pinned: boolean;
+}
+
+export type DevItemType = 'PERSONALITY' | 'SKILL';
+
+export interface DevItem {
+  id: string;
+  userId: string;
+  type: DevItemType;
+  title: string;
+  progress: number; // 0-100
+  notes: string | null;
+}
+
 export const api = {
   signup: (email: string, password: string, timezone?: string) =>
     request<AuthResponse>('/auth/signup', {
@@ -226,6 +245,51 @@ export const api = {
       method: 'DELETE',
       auth: true,
     }),
+
+  // --- Notes ---
+  listNotes: () => request<Note[]>('/notes', { auth: true }),
+
+  createNote: (data: { title: string; content?: string; pinned?: boolean }) =>
+    request<Note>('/notes', { method: 'POST', auth: true, body: data }),
+
+  updateNote: (
+    id: string,
+    data: { title?: string; content?: string; pinned?: boolean },
+  ) => request<Note>(`/notes/${id}`, { method: 'PATCH', auth: true, body: data }),
+
+  deleteNote: (id: string) =>
+    request<{ ok: true }>(`/notes/${id}`, { method: 'DELETE', auth: true }),
+
+  // --- Dev items (personality / skill growth) ---
+  listDevItems: (type?: DevItemType) =>
+    request<DevItem[]>(`/dev-items${type ? `?type=${type}` : ''}`, {
+      auth: true,
+    }),
+
+  createDevItem: (data: {
+    type: DevItemType;
+    title: string;
+    progress?: number;
+    notes?: string;
+  }) => request<DevItem>('/dev-items', { method: 'POST', auth: true, body: data }),
+
+  updateDevItem: (
+    id: string,
+    data: {
+      type?: DevItemType;
+      title?: string;
+      progress?: number;
+      notes?: string;
+    },
+  ) =>
+    request<DevItem>(`/dev-items/${id}`, {
+      method: 'PATCH',
+      auth: true,
+      body: data,
+    }),
+
+  deleteDevItem: (id: string) =>
+    request<{ ok: true }>(`/dev-items/${id}`, { method: 'DELETE', auth: true }),
 };
 
 export { API_URL };

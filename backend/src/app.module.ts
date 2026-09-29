@@ -8,6 +8,8 @@ import { GoalsModule } from './goals/goals.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { HabitsModule } from './habits/habits.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { NotesModule } from './notes/notes.module';
+import { DevItemsModule } from './dev-items/dev-items.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { NotificationsModule } from './notifications/notifications.module';
     DashboardModule,
     HabitsModule,
     NotificationsModule,
+    NotesModule,
+    DevItemsModule,
   ],
   controllers: [HealthController],
   providers: [PrismaService],
