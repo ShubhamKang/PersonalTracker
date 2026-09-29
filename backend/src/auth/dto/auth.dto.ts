@@ -46,3 +46,10 @@ export class PushTokenDto {
   @IsIn(['ios', 'android'])
   platform!: 'ios' | 'android';
 }
+
+export class UpdateProfileDto {
+  // IANA timezone, e.g. "Asia/Kolkata". Validated against Luxon in the service.
+  @IsString()
+  @MinLength(1)
+  timezone!: string;
+}

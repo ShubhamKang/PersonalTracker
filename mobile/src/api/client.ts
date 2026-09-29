@@ -171,6 +171,9 @@ export const api = {
 
   me: () => request<MeResponse>('/auth/me', { auth: true }),
 
+  updateProfile: (data: { timezone: string }) =>
+    request<MeResponse>('/auth/me', { method: 'PATCH', auth: true, body: data }),
+
   registerPushToken: (token: string, platform: 'ios' | 'android') =>
     request<{ ok: true }>('/auth/push-token', {
       method: 'POST',

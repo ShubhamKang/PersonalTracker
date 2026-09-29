@@ -40,4 +40,11 @@ export class UsersService {
       data: { googleId },
     });
   }
+
+  updateTimezone(userId: string, timezone: string): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { timezone },
+    });
+  }
 }

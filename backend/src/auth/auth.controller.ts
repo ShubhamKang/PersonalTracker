@@ -2,12 +2,15 @@ import {
   Body,
   Controller,
   Get,
+  Patch,
   Post,
   UseGuards,
   HttpCode,
   HttpStatus,
+  BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import { DateTime } from 'luxon';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -17,6 +20,7 @@ import {
   LoginDto,
   GoogleAuthDto,
   PushTokenDto,
+  UpdateProfileDto,
 } from './dto/auth.dto';
 
 @Controller('auth')
@@ -50,6 +54,31 @@ export class AuthController {
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    return this.toProfile(user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me')
+  async updateMe(
+    @CurrentUser() current: AuthUser,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    // Validate the IANA timezone using Luxon before persisting.
+    if (!DateTime.now().setZone(dto.timezone).isValid) {
+      throw new BadRequestException('Invalid timezone');
+    }
+    const user = await this.users.updateTimezone(current.userId, dto.timezone);
+    return this.toProfile(user);
+  }
+
+  private toProfile(user: {
+    id: string;
+    email: string;
+    timezone: string;
+    passwordHash: string | null;
+    googleId: string | null;
+    createdAt: Date;
+  }) {
     return {
       id: user.id,
       email: user.email,

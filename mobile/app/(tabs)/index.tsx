@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/context/auth-context';
 import { api, Todo, DashboardSummary, DueHabit } from '../../src/api/client';
 import {
@@ -42,7 +43,8 @@ function ProgressCard({
 }
 
 export default function TodayScreen() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const router = useRouter();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [habits, setHabits] = useState<DueHabit[]>([]);
@@ -162,8 +164,8 @@ export default function TodayScreen() {
           <Text style={styles.title}>Today</Text>
           <Text style={styles.muted}>{user?.email}</Text>
         </View>
-        <Pressable onPress={logout} hitSlop={10}>
-          <Text style={styles.logout}>Log out</Text>
+        <Pressable onPress={() => router.push('/settings')} hitSlop={10}>
+          <Text style={styles.settings}>Settings</Text>
         </Pressable>
       </View>
 
@@ -276,7 +278,7 @@ const styles = StyleSheet.create({
   },
   title: typography.screenTitle,
   muted: { color: colors.muted, marginTop: 2 },
-  logout: { color: colors.dangerSoft, fontWeight: '600' },
+  settings: { color: colors.primary, fontWeight: '600' },
   cards: { flexDirection: 'row', gap: spacing.sm + 2, marginBottom: spacing.lg },
   card: {
     flex: 1,
