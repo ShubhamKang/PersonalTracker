@@ -10,6 +10,7 @@ import { HabitsModule } from './habits/habits.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { NotesModule } from './notes/notes.module';
 import { DevItemsModule } from './dev-items/dev-items.module';
+import { ExportModule } from './export/export.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { DevItemsModule } from './dev-items/dev-items.module';
     NotificationsModule,
     NotesModule,
     DevItemsModule,
+    ExportModule,
   ],
   controllers: [HealthController],
   providers: [PrismaService],
