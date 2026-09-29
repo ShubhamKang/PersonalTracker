@@ -12,4 +12,9 @@ export class DashboardController {
   summary(@CurrentUser() user: AuthUser) {
     return this.dashboard.summary(user.userId);
   }
+
+  @Get('review')
+  review(@CurrentUser() user: AuthUser) {
+    return this.dashboard.review(user.userId);
+  }
 }

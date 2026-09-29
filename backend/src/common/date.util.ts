@@ -29,3 +29,14 @@ export function currentMonthKey(timezone?: string): string {
 export function currentWeekday(timezone?: string): number {
   return nowInZone(timezone).weekday;
 }
+
+/**
+ * The seven local dates ("YYYY-MM-DD") of the current ISO week (Mon..Sun)
+ * in the user's timezone. Used by the weekly review aggregation.
+ */
+export function currentWeekDates(timezone?: string): string[] {
+  const monday = nowInZone(timezone).startOf('week'); // Luxon: Monday
+  return Array.from({ length: 7 }, (_, i) =>
+    monday.plus({ days: i }).toFormat('yyyy-MM-dd'),
+  );
+}
