@@ -10,6 +10,8 @@ import {
   View,
 } from 'react-native';
 import { api, Progress, WeeklyReview } from '../../src/api/client';
+import { Button, ProgressBar, Screen } from '../../src/components';
+import { colors, radius, spacing, typography } from '../../src/theme/theme';
 
 export default function ReviewScreen() {
   const [review, setReview] = useState<WeeklyReview | null>(null);
@@ -41,10 +43,7 @@ export default function ReviewScreen() {
     try {
       const data = await api.exportData();
       const json = JSON.stringify(data, null, 2);
-      await Share.share({
-        title: 'Personal Tracker export',
-        message: json,
-      });
+      await Share.share({ title: 'Personal Tracker export', message: json });
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Export failed');
     } finally {
@@ -52,91 +51,86 @@ export default function ReviewScreen() {
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <Text style={styles.title}>Weekly Review</Text>
+    <Screen padded={false}>
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" />
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          <Text style={styles.title}>Weekly Review</Text>
 
-      {review && (
-        <>
-          <Text style={styles.range}>
-            {review.weekStart} → {review.weekEnd}
-          </Text>
+          {review && (
+            <>
+              <Text style={styles.range}>
+                {review.weekStart} → {review.weekEnd}
+              </Text>
 
-          {/* Overall completion ring-ish header */}
-          <View style={styles.rateCard}>
-            <Text style={styles.rateValue}>{review.completionRate}%</Text>
-            <Text style={styles.rateLabel}>overall completion</Text>
-            <View style={styles.rateBar}>
-              <View
-                style={[
-                  styles.rateFill,
-                  { width: `${review.completionRate}%` },
-                ]}
-              />
-            </View>
-          </View>
+              <View style={styles.rateCard}>
+                <Text style={styles.rateValue}>{review.completionRate}%</Text>
+                <Text style={styles.rateLabel}>overall completion</Text>
+                <ProgressBar
+                  percent={review.completionRate}
+                  color={colors.success}
+                  trackColor={colors.primaryDark}
+                />
+              </View>
 
-          <StatRow label="To-dos" p={review.todos} />
-          <StatRow label="Weekly goals" p={review.weeklyGoals} />
-          <StatRow label="Monthly goals" p={review.monthlyGoals} />
-          <StatRow label="Habits (this week)" p={review.habits} />
+              <StatRow label="To-dos" p={review.todos} />
+              <StatRow label="Weekly goals" p={review.weeklyGoals} />
+              <StatRow label="Monthly goals" p={review.monthlyGoals} />
+              <StatRow label="Habits (this week)" p={review.habits} />
 
-          {review.habitBreakdown.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionHeader}>HABIT BREAKDOWN</Text>
-              {review.habitBreakdown.map((h, idx) => (
-                <View key={`${h.title}-${idx}`} style={styles.habitRow}>
-                  <Text style={styles.habitTitle} numberOfLines={1}>
-                    {h.title}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.habitStatus,
-                      h.scheduled === 0
-                        ? styles.habitNa
-                        : h.completed >= h.scheduled
-                        ? styles.habitDone
-                        : styles.habitMissed,
-                    ]}
-                  >
-                    {h.scheduled === 0
-                      ? 'not this week'
-                      : h.completed >= h.scheduled
-                      ? '✓ done'
-                      : 'missed'}
-                  </Text>
+              {review.habitBreakdown.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionHeader}>HABIT BREAKDOWN</Text>
+                  {review.habitBreakdown.map((h, idx) => (
+                    <View key={`${h.title}-${idx}`} style={styles.habitRow}>
+                      <Text style={styles.habitTitle} numberOfLines={1}>
+                        {h.title}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.habitStatus,
+                          h.scheduled === 0
+                            ? styles.habitNa
+                            : h.completed >= h.scheduled
+                            ? styles.habitDone
+                            : styles.habitMissed,
+                        ]}
+                      >
+                        {h.scheduled === 0
+                          ? 'not this week'
+                          : h.completed >= h.scheduled
+                          ? '✓ done'
+                          : 'missed'}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
-            </View>
+              )}
+            </>
           )}
-        </>
-      )}
 
-      <Text
-        style={[styles.exportBtn, exporting && styles.exportBtnDisabled]}
-        onPress={exporting ? undefined : exportData}
-        suppressHighlighting
-      >
-        {exporting ? 'Preparing…' : 'Export my data'}
-      </Text>
-      <Text style={styles.exportHint}>
-        Exports all your todos, goals, habits, notes, and growth items as JSON.
-      </Text>
-    </ScrollView>
+          <Button
+            title={exporting ? 'Preparing…' : 'Export my data'}
+            onPress={exportData}
+            loading={exporting}
+            style={styles.exportBtn}
+          />
+          <Text style={styles.exportHint}>
+            Exports all your todos, goals, habits, notes, and growth items as
+            JSON.
+          </Text>
+        </ScrollView>
+      )}
+    </Screen>
   );
 }
 
@@ -150,94 +144,67 @@ function StatRow({ label, p }: { label: string; p: Progress }) {
           {p.done}/{p.total}
         </Text>
       </View>
-      <View style={styles.statBar}>
-        <View style={[styles.statFill, { width: `${pct}%` }]} />
-      </View>
+      <ProgressBar percent={pct} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  container: { flex: 1 },
-  content: { padding: 20, paddingTop: 64, paddingBottom: 48 },
-  title: { fontSize: 32, fontWeight: '700' },
-  range: { color: '#64748b', marginTop: 4, marginBottom: 18 },
+  content: { padding: spacing.xl, paddingBottom: spacing.xl * 2 },
+  title: typography.screenTitle,
+  range: { color: colors.muted, marginTop: spacing.xs, marginBottom: spacing.lg },
   rateCard: {
-    backgroundColor: '#0f172a',
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: colors.ink,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
-  rateValue: { color: '#fff', fontSize: 44, fontWeight: '800' },
-  rateLabel: { color: '#94a3b8', marginTop: 2, marginBottom: 14 },
-  rateBar: {
-    width: '100%',
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#1e293b',
-    overflow: 'hidden',
+  rateValue: { color: colors.onDark, fontSize: 44, fontWeight: '800' },
+  rateLabel: {
+    color: colors.onDarkMuted,
+    marginTop: 2,
+    marginBottom: spacing.md,
   },
-  rateFill: { height: '100%', backgroundColor: '#22c55e' },
   statCard: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.sm,
   },
   statTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
-  statLabel: { fontSize: 15, fontWeight: '600', color: '#334155' },
-  statCount: { fontSize: 15, fontWeight: '700', color: '#0f172a' },
-  statBar: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#e2e8f0',
-    overflow: 'hidden',
-  },
-  statFill: { height: '100%', backgroundColor: '#2563eb' },
-  section: { marginTop: 12, marginBottom: 8 },
+  statLabel: { ...typography.label, color: colors.text },
+  statCount: { fontSize: 15, fontWeight: '700', color: colors.ink },
+  section: { marginTop: spacing.md, marginBottom: spacing.sm },
   sectionHeader: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748b',
-    letterSpacing: 1,
-    marginBottom: 8,
+    ...typography.overline,
+    color: colors.muted,
+    marginBottom: spacing.sm,
   },
   habitRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: spacing.sm + 2,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: colors.surfaceAlt,
   },
-  habitTitle: { fontSize: 15, color: '#0f172a', flex: 1, marginRight: 12 },
+  habitTitle: { fontSize: 15, color: colors.ink, flex: 1, marginRight: spacing.md },
   habitStatus: { fontSize: 13, fontWeight: '600' },
-  habitDone: { color: '#16a34a' },
-  habitMissed: { color: '#dc2626' },
-  habitNa: { color: '#94a3b8' },
-  exportBtn: {
-    marginTop: 24,
-    backgroundColor: '#2563eb',
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-    textAlign: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  exportBtnDisabled: { backgroundColor: '#93c5fd' },
+  habitDone: { color: colors.successDark },
+  habitMissed: { color: colors.danger },
+  habitNa: { color: colors.faint },
+  exportBtn: { marginTop: spacing.xxl },
   exportHint: {
-    color: '#94a3b8',
+    color: colors.faint,
     fontSize: 12,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
 });

@@ -7,10 +7,17 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { api, DevItem, DevItemType } from '../../src/api/client';
+import {
+  Button,
+  EmptyState,
+  ProgressBar,
+  Screen,
+  TextField,
+} from '../../src/components';
+import { colors, radius, spacing, typography } from '../../src/theme/theme';
 
 const TYPES: DevItemType[] = ['PERSONALITY', 'SKILL'];
 const STEP = 10;
@@ -100,7 +107,7 @@ export default function GrowthScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <Screen>
       <Text style={styles.title}>Growth</Text>
 
       <View style={styles.segment}>
@@ -118,7 +125,7 @@ export default function GrowthScreen() {
       </View>
 
       <View style={styles.addRow}>
-        <TextInput
+        <TextField
           style={styles.input}
           placeholder={`Add a ${
             type === 'PERSONALITY' ? 'trait' : 'skill'
@@ -128,13 +135,7 @@ export default function GrowthScreen() {
           onSubmitEditing={add}
           returnKeyType="done"
         />
-        <Pressable style={styles.addBtn} onPress={add} disabled={adding}>
-          {adding ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.addBtnText}>Add</Text>
-          )}
-        </Pressable>
+        <Button title="Add" onPress={add} loading={adding} style={styles.addBtn} />
       </View>
 
       {loading ? (
@@ -147,7 +148,7 @@ export default function GrowthScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           ListEmptyComponent={
-            <Text style={styles.empty}>Nothing tracked yet. Add one above.</Text>
+            <EmptyState message="Nothing tracked yet. Add one above." />
           }
           renderItem={({ item }) => (
             <View style={styles.card}>
@@ -158,11 +159,12 @@ export default function GrowthScreen() {
                 </Pressable>
               </View>
 
-              <View style={styles.progressBar}>
-                <View
-                  style={[styles.progressFill, { width: `${item.progress}%` }]}
-                />
-              </View>
+              <ProgressBar
+                percent={item.progress}
+                color={colors.success}
+                height={10}
+                style={styles.progress}
+              />
 
               <View style={styles.progressRow}>
                 <Pressable
@@ -183,81 +185,62 @@ export default function GrowthScreen() {
           )}
         />
       )}
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, paddingTop: 64 },
-  title: { fontSize: 32, fontWeight: '700', marginBottom: 16 },
+  title: { ...typography.screenTitle, marginBottom: spacing.lg },
   segment: {
     flexDirection: 'row',
-    backgroundColor: '#e2e8f0',
-    borderRadius: 10,
-    padding: 4,
-    marginBottom: 16,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    padding: spacing.xs,
+    marginBottom: spacing.lg,
   },
-  segItem: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  segItemActive: { backgroundColor: '#fff' },
-  segText: { color: '#64748b', fontWeight: '600' },
-  segTextActive: { color: '#0f172a' },
-  addRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  input: {
+  segItem: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 16,
-  },
-  addBtn: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 18,
-    borderRadius: 10,
-    justifyContent: 'center',
-    minWidth: 64,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
     alignItems: 'center',
   },
-  addBtnText: { color: '#fff', fontWeight: '600' },
-  empty: { textAlign: 'center', color: '#94a3b8', marginTop: 40 },
+  segItemActive: { backgroundColor: colors.background },
+  segText: { color: colors.muted, fontWeight: '600' },
+  segTextActive: { color: colors.ink },
+  addRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
+  input: { flex: 1 },
+  addBtn: { minWidth: 64 },
   card: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-    backgroundColor: '#fff',
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    backgroundColor: colors.background,
   },
   cardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: spacing.md,
   },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: '#0f172a', flex: 1 },
-  delete: { color: '#cbd5e1', fontSize: 18, paddingHorizontal: 4 },
-  progressBar: {
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#e2e8f0',
-    overflow: 'hidden',
-    marginBottom: 12,
-  },
-  progressFill: { height: '100%', backgroundColor: '#22c55e' },
+  cardTitle: { ...typography.label, fontSize: 16, color: colors.ink, flex: 1 },
+  delete: { color: colors.disabledText, fontSize: 18, paddingHorizontal: spacing.xs },
+  progress: { marginBottom: spacing.md },
   progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 20,
+    gap: spacing.xl,
   },
   stepBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: colors.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepText: { fontSize: 22, fontWeight: '700', color: '#334155' },
+  stepText: { fontSize: 22, fontWeight: '700', color: colors.text },
   pct: { fontSize: 16, fontWeight: '700', minWidth: 56, textAlign: 'center' },
 });

@@ -10,17 +10,23 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { api, Note } from '../../src/api/client';
+import {
+  Button,
+  Checkbox,
+  EmptyState,
+  Screen,
+  TextField,
+} from '../../src/components';
+import { colors, radius, spacing, typography } from '../../src/theme/theme';
 
 export default function NotesScreen() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Editor modal state. `editing` null => closed; note with empty id => new.
   const [editing, setEditing] = useState<Note | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftContent, setDraftContent] = useState('');
@@ -98,18 +104,14 @@ export default function NotesScreen() {
   const togglePin = async (note: Note) => {
     const next = !note.pinned;
     setNotes((prev) =>
-      sortNotes(
-        prev.map((n) => (n.id === note.id ? { ...n, pinned: next } : n)),
-      ),
+      sortNotes(prev.map((n) => (n.id === note.id ? { ...n, pinned: next } : n))),
     );
     try {
       await api.updateNote(note.id, { pinned: next });
     } catch {
       setNotes((prev) =>
         sortNotes(
-          prev.map((n) =>
-            n.id === note.id ? { ...n, pinned: note.pinned } : n,
-          ),
+          prev.map((n) => (n.id === note.id ? { ...n, pinned: note.pinned } : n)),
         ),
       );
       Alert.alert('Error', 'Failed to update pin.');
@@ -137,7 +139,7 @@ export default function NotesScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <Screen>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Notes</Text>
         <Pressable style={styles.newBtn} onPress={openNew}>
@@ -154,9 +156,7 @@ export default function NotesScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          ListEmptyComponent={
-            <Text style={styles.empty}>No notes yet. Tap “+ New”.</Text>
-          }
+          ListEmptyComponent={<EmptyState message="No notes yet. Tap “+ New”." />}
           renderItem={({ item }) => (
             <Pressable style={styles.card} onPress={() => openEdit(item)}>
               <View style={styles.cardHeader}>
@@ -172,9 +172,7 @@ export default function NotesScreen() {
               ) : null}
               <View style={styles.cardActions}>
                 <Pressable onPress={() => togglePin(item)} hitSlop={8}>
-                  <Text style={styles.action}>
-                    {item.pinned ? 'Unpin' : 'Pin'}
-                  </Text>
+                  <Text style={styles.action}>{item.pinned ? 'Unpin' : 'Pin'}</Text>
                 </Pressable>
                 <Pressable onPress={() => remove(item)} hitSlop={8}>
                   <Text style={[styles.action, styles.delete]}>Delete</Text>
@@ -199,13 +197,13 @@ export default function NotesScreen() {
             <Text style={styles.modalTitle}>
               {editing && editing.id ? 'Edit note' : 'New note'}
             </Text>
-            <TextInput
+            <TextField
               style={styles.titleInput}
               placeholder="Title"
               value={draftTitle}
               onChangeText={setDraftTitle}
             />
-            <TextInput
+            <TextField
               style={styles.contentInput}
               placeholder="Write something…"
               value={draftContent}
@@ -217,34 +215,27 @@ export default function NotesScreen() {
               style={styles.pinToggle}
               onPress={() => setDraftPinned((p) => !p)}
             >
-              <View style={[styles.check, draftPinned && styles.checkOn]}>
-                {draftPinned && <Text style={styles.checkMark}>✓</Text>}
-              </View>
+              <Checkbox checked={draftPinned} size={22} />
               <Text style={styles.pinToggleText}>Pin to top</Text>
             </Pressable>
             <View style={styles.modalBtns}>
-              <Pressable
-                style={[styles.modalBtn, styles.cancelBtn]}
+              <Button
+                title="Cancel"
+                variant="secondary"
                 onPress={closeEditor}
-              >
-                <Text style={styles.cancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalBtn, styles.saveBtn]}
+                style={styles.modalBtn}
+              />
+              <Button
+                title="Save"
                 onPress={save}
-                disabled={saving}
-              >
-                {saving ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.saveText}>Save</Text>
-                )}
-              </Pressable>
+                loading={saving}
+                style={styles.modalBtn}
+              />
             </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </View>
+    </Screen>
   );
 }
 
@@ -254,98 +245,57 @@ function sortNotes(list: Note[]): Note[] {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, paddingTop: 64 },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
-  title: { fontSize: 32, fontWeight: '700' },
+  title: typography.screenTitle,
   newBtn: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
   },
-  newBtnText: { color: '#fff', fontWeight: '600' },
-  empty: { textAlign: 'center', color: '#94a3b8', marginTop: 40 },
+  newBtnText: { color: colors.onDark, fontWeight: '600' },
   card: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-    backgroundColor: '#fff',
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    backgroundColor: colors.background,
   },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2 },
   pin: { fontSize: 14 },
-  cardTitle: { fontSize: 17, fontWeight: '700', flex: 1, color: '#0f172a' },
-  cardBody: { color: '#475569', marginTop: 6 },
-  cardActions: {
-    flexDirection: 'row',
-    gap: 18,
-    marginTop: 10,
-  },
-  action: { color: '#2563eb', fontWeight: '600', fontSize: 13 },
-  delete: { color: '#dc2626' },
+  cardTitle: { fontSize: 17, fontWeight: '700', flex: 1, color: colors.ink },
+  cardBody: { color: colors.text, marginTop: spacing.xs + 2 },
+  cardActions: { flexDirection: 'row', gap: spacing.lg + 2, marginTop: spacing.sm + 2 },
+  action: { color: colors.primary, fontWeight: '600', fontSize: 13 },
+  delete: { color: colors.danger },
   modalWrap: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 32,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: radius.xl + 4,
+    borderTopRightRadius: radius.xl + 4,
+    padding: spacing.xl,
+    paddingBottom: spacing.xxl + spacing.sm,
   },
-  modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 14 },
-  titleInput: {
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 10,
-  },
-  contentInput: {
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 15,
-    minHeight: 140,
-    marginBottom: 12,
-  },
+  modalTitle: { ...typography.sectionTitle, fontSize: 20, marginBottom: spacing.md + 2 },
+  titleInput: { marginBottom: spacing.sm + 2 },
+  contentInput: { minHeight: 140, marginBottom: spacing.md },
   pinToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 18,
+    gap: spacing.sm + 2,
+    marginBottom: spacing.lg + 2,
   },
-  check: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#94a3b8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkOn: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-  checkMark: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  pinToggleText: { fontSize: 15, color: '#334155' },
-  modalBtns: { flexDirection: 'row', gap: 12 },
-  modalBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  cancelBtn: { backgroundColor: '#e2e8f0' },
-  cancelText: { color: '#334155', fontWeight: '600' },
-  saveBtn: { backgroundColor: '#2563eb' },
-  saveText: { color: '#fff', fontWeight: '700' },
+  pinToggleText: { fontSize: 15, color: colors.text },
+  modalBtns: { flexDirection: 'row', gap: spacing.md },
+  modalBtn: { flex: 1 },
 });

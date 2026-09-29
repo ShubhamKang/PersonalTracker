@@ -7,10 +7,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { api, Section } from '../../src/api/client';
+import { Button, EmptyState, Screen, TextField } from '../../src/components';
+import { colors, radius, spacing, typography } from '../../src/theme/theme';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']; // index+1 = ISO weekday
 
@@ -81,53 +82,51 @@ export default function HabitsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-      </View>
+      <Screen>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" />
+        </View>
+      </Screen>
     );
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: 40 }}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <Text style={styles.title}>Habits</Text>
+    <Screen padded={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        <Text style={styles.title}>Habits</Text>
 
-      <View style={styles.addRow}>
-        <TextInput
-          style={styles.input}
-          placeholder="New section (e.g. Skin Care)…"
-          value={newSection}
-          onChangeText={setNewSection}
-          onSubmitEditing={addSection}
-          returnKeyType="done"
-        />
-        <Pressable style={styles.addBtn} onPress={addSection}>
-          <Text style={styles.addBtnText}>Add</Text>
-        </Pressable>
-      </View>
-
-      {sections.length === 0 ? (
-        <Text style={styles.empty}>
-          No sections yet. Create one (Physical Fitness, Skin Care…) then add
-          habits to specific weekdays.
-        </Text>
-      ) : (
-        sections.map((section) => (
-          <SectionCard
-            key={section.id}
-            section={section}
-            onDeleteSection={() => removeSection(section)}
-            onDeleteHabit={removeHabit}
-            onChanged={load}
+        <View style={styles.addRow}>
+          <TextField
+            style={styles.input}
+            placeholder="New section (e.g. Skin Care)…"
+            value={newSection}
+            onChangeText={setNewSection}
+            onSubmitEditing={addSection}
+            returnKeyType="done"
           />
-        ))
-      )}
-    </ScrollView>
+          <Button title="Add" onPress={addSection} style={styles.addBtn} />
+        </View>
+
+        {sections.length === 0 ? (
+          <EmptyState message="No sections yet. Create one (Physical Fitness, Skin Care…) then add habits to specific weekdays." />
+        ) : (
+          sections.map((section) => (
+            <SectionCard
+              key={section.id}
+              section={section}
+              onDeleteSection={() => removeSection(section)}
+              onDeleteHabit={removeHabit}
+              onChanged={load}
+            />
+          ))
+        )}
+      </ScrollView>
+    </Screen>
   );
 }
 
@@ -186,7 +185,6 @@ function SectionCard({
         ))
       )}
 
-      {/* Add habit */}
       <View style={styles.weekdayRow}>
         {WEEKDAYS.map((d, i) => {
           const wd = i + 1;
@@ -209,7 +207,7 @@ function SectionCard({
         })}
       </View>
       <View style={styles.addRow}>
-        <TextInput
+        <TextField
           style={styles.input}
           placeholder={`Habit for ${WEEKDAYS[weekday - 1]}…`}
           value={title}
@@ -217,89 +215,65 @@ function SectionCard({
           onSubmitEditing={addHabit}
           returnKeyType="done"
         />
-        <Pressable style={styles.addBtn} onPress={addHabit} disabled={busy}>
-          {busy ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.addBtnText}>Add</Text>
-          )}
-        </Pressable>
+        <Button title="Add" onPress={addHabit} loading={busy} style={styles.addBtn} />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, paddingTop: 64 },
+  content: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl * 2,
+  },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 32, fontWeight: '700', marginBottom: 16 },
-  addRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 15,
-  },
-  addBtn: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    justifyContent: 'center',
-    minWidth: 60,
-    alignItems: 'center',
-  },
-  addBtnText: { color: '#fff', fontWeight: '600' },
-  empty: { color: '#94a3b8', textAlign: 'center', marginTop: 30, lineHeight: 20 },
+  title: { ...typography.screenTitle, marginBottom: spacing.lg },
+  addRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
+  input: { flex: 1 },
+  addBtn: { minWidth: 60 },
   card: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: colors.border,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: spacing.md,
   },
-  sectionName: { fontSize: 18, fontWeight: '700' },
-  delete: { color: '#ef4444', fontWeight: '600', fontSize: 13 },
-  noHabits: { color: '#cbd5e1', fontStyle: 'italic', marginBottom: 10 },
+  sectionName: { ...typography.sectionTitle },
+  delete: { color: colors.dangerSoft, fontWeight: '600', fontSize: 13 },
+  noHabits: { color: colors.disabledText, fontStyle: 'italic', marginBottom: spacing.md },
   habitRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#eef2f7',
-    gap: 10,
+    borderBottomColor: colors.divider,
+    gap: spacing.md,
   },
-  habitDay: {
-    width: 40,
-    fontWeight: '700',
-    color: '#2563eb',
-    fontSize: 13,
-  },
-  habitTitle: { flex: 1, fontSize: 15 },
-  habitDelete: { color: '#cbd5e1', fontSize: 16 },
+  habitDay: { width: 40, fontWeight: '700', color: colors.primary, fontSize: 13 },
+  habitTitle: { flex: 1, fontSize: 15, color: colors.ink },
+  habitDelete: { color: colors.disabledText, fontSize: 16 },
   weekdayRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 12,
-    marginBottom: 10,
+    gap: spacing.xs + 2,
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
   },
   dayChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
+    paddingHorizontal: spacing.md - 2,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.lg + 2,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: colors.borderStrong,
   },
-  dayChipActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-  dayChipText: { fontSize: 12, color: '#475569', fontWeight: '600' },
-  dayChipTextActive: { color: '#fff' },
+  dayChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  dayChipText: { fontSize: 12, color: colors.text, fontWeight: '600' },
+  dayChipTextActive: { color: colors.onDark },
 });

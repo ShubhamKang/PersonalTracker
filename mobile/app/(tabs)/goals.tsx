@@ -7,15 +7,17 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
+import { api, Goal, GoalCategory, GoalScope } from '../../src/api/client';
 import {
-  api,
-  Goal,
-  GoalCategory,
-  GoalScope,
-} from '../../src/api/client';
+  Button,
+  Checkbox,
+  EmptyState,
+  Screen,
+  TextField,
+} from '../../src/components';
+import { colors, radius, spacing, typography } from '../../src/theme/theme';
 
 const SCOPES: GoalScope[] = ['WEEKLY', 'MONTHLY'];
 const CATEGORIES: GoalCategory[] = ['STUDY', 'OTHER'];
@@ -31,8 +33,7 @@ export default function GoalsScreen() {
 
   const load = useCallback(async (s: GoalScope) => {
     try {
-      const list = await api.listGoals(s);
-      setGoals(list);
+      setGoals(await api.listGoals(s));
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to load');
     }
@@ -97,10 +98,9 @@ export default function GoalsScreen() {
   }));
 
   return (
-    <View style={styles.container}>
+    <Screen>
       <Text style={styles.title}>Goals</Text>
 
-      {/* Scope toggle */}
       <View style={styles.segment}>
         {SCOPES.map((s) => (
           <Pressable
@@ -115,9 +115,8 @@ export default function GoalsScreen() {
         ))}
       </View>
 
-      {/* Add row */}
       <View style={styles.addRow}>
-        <TextInput
+        <TextField
           style={styles.input}
           placeholder={`Add a ${scope === 'WEEKLY' ? 'weekly' : 'monthly'} goal…`}
           value={newTitle}
@@ -125,16 +124,9 @@ export default function GoalsScreen() {
           onSubmitEditing={addGoal}
           returnKeyType="done"
         />
-        <Pressable style={styles.addBtn} onPress={addGoal} disabled={adding}>
-          {adding ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.addBtnText}>Add</Text>
-          )}
-        </Pressable>
+        <Button title="Add" onPress={addGoal} loading={adding} style={styles.addBtn} />
       </View>
 
-      {/* Category selector for new goal */}
       <View style={styles.catRow}>
         {CATEGORIES.map((c) => (
           <Pressable
@@ -142,9 +134,7 @@ export default function GoalsScreen() {
             style={[styles.catChip, category === c && styles.catChipActive]}
             onPress={() => setCategory(c)}
           >
-            <Text
-              style={[styles.catText, category === c && styles.catTextActive]}
-            >
+            <Text style={[styles.catText, category === c && styles.catTextActive]}>
               {c}
             </Text>
           </Pressable>
@@ -160,9 +150,7 @@ export default function GoalsScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          ListEmptyComponent={
-            <Text style={styles.empty}>No goals yet. Add one above.</Text>
-          }
+          ListEmptyComponent={<EmptyState message="No goals yet. Add one above." />}
           renderItem={({ item: section }) => (
             <View style={styles.section}>
               <Text style={styles.sectionHeader}>{section.category}</Text>
@@ -171,18 +159,9 @@ export default function GoalsScreen() {
               ) : (
                 section.items.map((goal) => (
                   <View key={goal.id} style={styles.item}>
-                    <Pressable
-                      style={styles.itemMain}
-                      onPress={() => toggle(goal)}
-                    >
-                      <View
-                        style={[styles.check, goal.done && styles.checkDone]}
-                      >
-                        {goal.done && <Text style={styles.checkMark}>✓</Text>}
-                      </View>
-                      <Text
-                        style={[styles.itemText, goal.done && styles.itemDone]}
-                      >
+                    <Pressable style={styles.itemMain} onPress={() => toggle(goal)}>
+                      <Checkbox checked={goal.done} />
+                      <Text style={[styles.itemText, goal.done && styles.itemDone]}>
                         {goal.title}
                       </Text>
                     </Pressable>
@@ -196,84 +175,64 @@ export default function GoalsScreen() {
           )}
         />
       )}
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, paddingTop: 64 },
-  title: { fontSize: 32, fontWeight: '700', marginBottom: 16 },
+  title: { ...typography.screenTitle, marginBottom: spacing.lg },
   segment: {
     flexDirection: 'row',
-    backgroundColor: '#e2e8f0',
-    borderRadius: 10,
-    padding: 4,
-    marginBottom: 16,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    padding: spacing.xs,
+    marginBottom: spacing.lg,
   },
-  segItem: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  segItemActive: { backgroundColor: '#fff' },
-  segText: { color: '#64748b', fontWeight: '600' },
-  segTextActive: { color: '#0f172a' },
-  addRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  input: {
+  segItem: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 16,
-  },
-  addBtn: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 18,
-    borderRadius: 10,
-    justifyContent: 'center',
-    minWidth: 64,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
     alignItems: 'center',
   },
-  addBtnText: { color: '#fff', fontWeight: '600' },
-  catRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  segItemActive: { backgroundColor: colors.background },
+  segText: { color: colors.muted, fontWeight: '600' },
+  segTextActive: { color: colors.ink },
+  addRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm + 2 },
+  input: { flex: 1 },
+  addBtn: { minWidth: 64 },
+  catRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
   catChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: spacing.md + 2,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: colors.borderStrong,
   },
-  catChipActive: { backgroundColor: '#0f172a', borderColor: '#0f172a' },
-  catText: { color: '#475569', fontWeight: '600', fontSize: 12 },
-  catTextActive: { color: '#fff' },
-  empty: { textAlign: 'center', color: '#94a3b8', marginTop: 40 },
-  section: { marginBottom: 20 },
+  catChipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
+  catText: { color: colors.text, fontWeight: '600', fontSize: 12 },
+  catTextActive: { color: colors.onDark },
+  section: { marginBottom: spacing.xl },
   sectionHeader: {
+    ...typography.overline,
     fontSize: 13,
-    fontWeight: '700',
-    color: '#64748b',
-    letterSpacing: 1,
-    marginBottom: 6,
+    color: colors.muted,
+    marginBottom: spacing.xs + 2,
   },
-  sectionEmpty: { color: '#cbd5e1', fontStyle: 'italic', paddingVertical: 6 },
+  sectionEmpty: {
+    color: colors.disabledText,
+    fontStyle: 'italic',
+    paddingVertical: spacing.xs + 2,
+  },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: colors.divider,
   },
-  itemMain: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 },
-  check: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#94a3b8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkDone: { backgroundColor: '#22c55e', borderColor: '#22c55e' },
-  checkMark: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  itemText: { fontSize: 16, flex: 1 },
-  itemDone: { textDecorationLine: 'line-through', color: '#94a3b8' },
-  delete: { color: '#cbd5e1', fontSize: 18, paddingHorizontal: 4 },
+  itemMain: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: spacing.md },
+  itemText: { fontSize: 16, flex: 1, color: colors.ink },
+  itemDone: { textDecorationLine: 'line-through', color: colors.faint },
+  delete: { color: colors.disabledText, fontSize: 18, paddingHorizontal: spacing.xs },
 });

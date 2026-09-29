@@ -7,11 +7,19 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useAuth } from '../../src/context/auth-context';
 import { api, Todo, DashboardSummary, DueHabit } from '../../src/api/client';
+import {
+  Button,
+  Checkbox,
+  EmptyState,
+  Screen,
+  SectionHeading,
+  TextField,
+} from '../../src/components';
+import { colors, radius, spacing, typography } from '../../src/theme/theme';
 
 function ProgressCard({
   label,
@@ -89,14 +97,12 @@ export default function TodayScreen() {
   };
 
   const toggle = async (todo: Todo) => {
-    // Optimistic update.
     setTodos((prev) =>
       prev.map((t) => (t.id === todo.id ? { ...t, done: !t.done } : t)),
     );
     try {
       await api.updateTodo(todo.id, { done: !todo.done });
     } catch {
-      // Revert on failure.
       setTodos((prev) =>
         prev.map((t) => (t.id === todo.id ? { ...t, done: todo.done } : t)),
       );
@@ -117,7 +123,6 @@ export default function TodayScreen() {
 
   const toggleHabit = async (habit: DueHabit) => {
     const nextDone = !habit.done;
-    // Optimistic: update done + nudge streak for immediate feedback.
     setHabits((prev) =>
       prev.map((h) =>
         h.id === habit.id
@@ -141,7 +146,6 @@ export default function TodayScreen() {
     }
   };
 
-  // Group due habits by section for display.
   const habitSections = Array.from(
     habits.reduce((map, h) => {
       const arr = map.get(h.sectionName) ?? [];
@@ -152,7 +156,7 @@ export default function TodayScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <Screen>
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Today</Text>
@@ -187,7 +191,7 @@ export default function TodayScreen() {
       </View>
 
       <View style={styles.addRow}>
-        <TextInput
+        <TextField
           style={styles.input}
           placeholder="Add a to-do…"
           value={newTitle}
@@ -195,13 +199,7 @@ export default function TodayScreen() {
           onSubmitEditing={addTodo}
           returnKeyType="done"
         />
-        <Pressable style={styles.addBtn} onPress={addTodo} disabled={adding}>
-          {adding ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.addBtnText}>Add</Text>
-          )}
-        </Pressable>
+        <Button title="Add" onPress={addTodo} loading={adding} style={styles.addBtn} />
       </View>
 
       {loading ? (
@@ -217,7 +215,7 @@ export default function TodayScreen() {
             <View>
               {habitSections.length > 0 && (
                 <View style={styles.habitsBlock}>
-                  <Text style={styles.blockHeading}>TODAY'S HABITS</Text>
+                  <SectionHeading>TODAY'S HABITS</SectionHeading>
                   {habitSections.map(([sectionName, items]) => (
                     <View key={sectionName} style={styles.habitSection}>
                       <Text style={styles.habitSectionName}>{sectionName}</Text>
@@ -228,16 +226,9 @@ export default function TodayScreen() {
                           onPress={() => toggleHabit(h)}
                         >
                           <View style={styles.itemMain}>
-                            <View
-                              style={[styles.check, h.done && styles.checkDone]}
-                            >
-                              {h.done && <Text style={styles.checkMark}>✓</Text>}
-                            </View>
+                            <Checkbox checked={h.done} />
                             <Text
-                              style={[
-                                styles.itemText,
-                                h.done && styles.itemDone,
-                              ]}
+                              style={[styles.itemText, h.done && styles.itemDone]}
                             >
                               {h.title}
                             </Text>
@@ -251,18 +242,16 @@ export default function TodayScreen() {
                   ))}
                 </View>
               )}
-              <Text style={styles.blockHeading}>TO-DOS</Text>
+              <SectionHeading>TO-DOS</SectionHeading>
             </View>
           }
           ListEmptyComponent={
-            <Text style={styles.empty}>Nothing for today yet. Add one above.</Text>
+            <EmptyState message="Nothing for today yet. Add one above." />
           }
           renderItem={({ item }) => (
             <View style={styles.item}>
               <Pressable style={styles.itemMain} onPress={() => toggle(item)}>
-                <View style={[styles.check, item.done && styles.checkDone]}>
-                  {item.done && <Text style={styles.checkMark}>✓</Text>}
-                </View>
+                <Checkbox checked={item.done} />
                 <Text style={[styles.itemText, item.done && styles.itemDone]}>
                   {item.title}
                 </Text>
@@ -274,90 +263,54 @@ export default function TodayScreen() {
           )}
         />
       )}
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, paddingTop: 64 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
-  title: { fontSize: 32, fontWeight: '700' },
-  muted: { color: '#666', marginTop: 2 },
-  logout: { color: '#ef4444', fontWeight: '600' },
-  cards: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  title: typography.screenTitle,
+  muted: { color: colors.muted, marginTop: 2 },
+  logout: { color: colors.dangerSoft, fontWeight: '600' },
+  cards: { flexDirection: 'row', gap: spacing.sm + 2, marginBottom: spacing.lg },
   card: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
     alignItems: 'center',
   },
-  cardLabel: { color: '#64748b', fontSize: 12, fontWeight: '600' },
-  cardValue: { fontSize: 22, fontWeight: '700', color: '#0f172a', marginTop: 4 },
-  cardValueDone: { color: '#22c55e' },
-  habitsBlock: { marginBottom: 12 },
-  blockHeading: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#94a3b8',
-    letterSpacing: 1,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  habitSection: { marginBottom: 8 },
+  cardLabel: { color: colors.muted, fontSize: 12, fontWeight: '600' },
+  cardValue: { fontSize: 22, fontWeight: '700', color: colors.ink, marginTop: spacing.xs },
+  cardValueDone: { color: colors.success },
+  habitsBlock: { marginBottom: spacing.md },
+  habitSection: { marginBottom: spacing.sm },
   habitSectionName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2563eb',
-    marginTop: 6,
+    color: colors.primary,
+    marginTop: spacing.xs + 2,
     marginBottom: 2,
   },
-  streak: { color: '#f97316', fontWeight: '700', fontSize: 13 },
-  addRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 16,
-  },
-  addBtn: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 18,
-    borderRadius: 10,
-    justifyContent: 'center',
-    minWidth: 64,
-    alignItems: 'center',
-  },
-  addBtnText: { color: '#fff', fontWeight: '600' },
-  empty: { textAlign: 'center', color: '#94a3b8', marginTop: 40 },
+  streak: { color: colors.warning, fontWeight: '700', fontSize: 13 },
+  addRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
+  input: { flex: 1 },
+  addBtn: { minWidth: 64 },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
+    paddingVertical: spacing.md + 2,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: colors.divider,
   },
-  itemMain: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 },
-  check: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#94a3b8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkDone: { backgroundColor: '#22c55e', borderColor: '#22c55e' },
-  checkMark: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  itemText: { fontSize: 16, flex: 1 },
-  itemDone: { textDecorationLine: 'line-through', color: '#94a3b8' },
-  delete: { color: '#cbd5e1', fontSize: 18, paddingHorizontal: 4 },
+  itemMain: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: spacing.md },
+  itemText: { fontSize: 16, flex: 1, color: colors.ink },
+  itemDone: { textDecorationLine: 'line-through', color: colors.faint },
+  delete: { color: colors.disabledText, fontSize: 18, paddingHorizontal: spacing.xs },
 });
