@@ -269,6 +269,13 @@ export const api = {
       auth: true,
     }),
 
+  // --- Notifications ---
+  testNotification: () =>
+    request<{ count: number; messages: unknown[] }>('/notifications/test', {
+      method: 'POST',
+      auth: true,
+    }),
+
   // --- Notes ---
   listNotes: () => request<Note[]>('/notes', { auth: true }),
 

@@ -145,6 +145,11 @@ function SectionCard({
   const [weekday, setWeekday] = useState(1);
   const [busy, setBusy] = useState(false);
 
+  // Notification settings (FR-21/22). Local mirror for optimistic UI.
+  const [notifOn, setNotifOn] = useState(section.notificationsEnabled);
+  const [reminder, setReminder] = useState(section.reminderTime ?? '21:30');
+  const [savingNotif, setSavingNotif] = useState(false);
+
   const addHabit = async () => {
     const t = title.trim();
     if (!t) {
@@ -159,6 +164,66 @@ function SectionCard({
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const isValidTime = (s: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(s.trim());
+
+  const toggleNotif = async () => {
+    const next = !notifOn;
+    // When enabling, ensure a valid reminder time is set (default 21:30).
+    const time = isValidTime(reminder) ? reminder.trim() : '21:30';
+    setNotifOn(next);
+    if (!isValidTime(reminder)) {
+      setReminder(time);
+    }
+    setSavingNotif(true);
+    try {
+      await api.updateSection(section.id, {
+        notificationsEnabled: next,
+        reminderTime: time,
+      });
+    } catch (e) {
+      setNotifOn(!next); // revert
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed');
+    } finally {
+      setSavingNotif(false);
+    }
+  };
+
+  const saveReminder = async () => {
+    const time = reminder.trim();
+    if (!isValidTime(time)) {
+      Alert.alert('Invalid time', 'Use 24-hour HH:MM, e.g. 21:30.');
+      setReminder(section.reminderTime ?? '21:30');
+      return;
+    }
+    setSavingNotif(true);
+    try {
+      await api.updateSection(section.id, { reminderTime: time });
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed');
+    } finally {
+      setSavingNotif(false);
+    }
+  };
+
+  const sendTest = async () => {
+    try {
+      const res = await api.testNotification();
+      if (res.count > 0) {
+        Alert.alert(
+          'Test sent',
+          `${res.count} reminder(s) evaluated for your enabled sections. On a real device with notifications allowed, you'd receive them now.`,
+        );
+      } else {
+        Alert.alert(
+          'Nothing to send',
+          'No enabled section has incomplete habits due today (reminders stay silent when everything is done).',
+        );
+      }
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed');
     }
   };
 
@@ -216,6 +281,45 @@ function SectionCard({
           returnKeyType="done"
         />
         <Button title="Add" onPress={addHabit} loading={busy} style={styles.addBtn} />
+      </View>
+
+      {/* Notification opt-in + reminder time (FR-21/22) */}
+      <View style={styles.notifBlock}>
+        <Pressable style={styles.notifToggleRow} onPress={toggleNotif}>
+          <View style={styles.notifLabelWrap}>
+            <Text style={styles.notifLabel}>Reminders</Text>
+            <Text style={styles.notifHint}>
+              {notifOn
+                ? 'Lists only what you missed, at the time below.'
+                : 'Off — no reminders for this section.'}
+            </Text>
+          </View>
+          <View style={[styles.switchTrack, notifOn && styles.switchTrackOn]}>
+            <View style={[styles.switchThumb, notifOn && styles.switchThumbOn]} />
+          </View>
+        </Pressable>
+
+        {notifOn && (
+          <View style={styles.reminderRow}>
+            <Text style={styles.reminderLabel}>At</Text>
+            <TextField
+              style={styles.timeInput}
+              value={reminder}
+              onChangeText={setReminder}
+              onBlur={saveReminder}
+              onSubmitEditing={saveReminder}
+              placeholder="21:30"
+              keyboardType="numbers-and-punctuation"
+              maxLength={5}
+              returnKeyType="done"
+            />
+            <Text style={styles.reminderHint}>24-hour HH:MM</Text>
+            {savingNotif && <ActivityIndicator style={{ marginLeft: 6 }} />}
+            <Pressable style={styles.testBtn} onPress={sendTest} hitSlop={6}>
+              <Text style={styles.testBtnText}>Send test</Text>
+            </Pressable>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -276,4 +380,54 @@ const styles = StyleSheet.create({
   dayChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   dayChipText: { fontSize: 12, color: colors.text, fontWeight: '600' },
   dayChipTextActive: { color: colors.onDark },
+  notifBlock: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  notifToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  notifLabelWrap: { flex: 1, marginRight: spacing.md },
+  notifLabel: { ...typography.label, color: colors.ink },
+  notifHint: { fontSize: 12, color: colors.muted, marginTop: 2 },
+  switchTrack: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.borderStrong,
+    padding: 2,
+    justifyContent: 'center',
+  },
+  switchTrackOn: { backgroundColor: colors.success },
+  switchThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.onDark,
+    alignSelf: 'flex-start',
+  },
+  switchThumbOn: { alignSelf: 'flex-end' },
+  reminderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  reminderLabel: { color: colors.text, fontWeight: '600' },
+  timeInput: { width: 84, textAlign: 'center' },
+  reminderHint: { fontSize: 11, color: colors.faint },
+  testBtn: {
+    marginLeft: 'auto',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  testBtnText: { color: colors.primary, fontWeight: '600', fontSize: 12 },
 });
