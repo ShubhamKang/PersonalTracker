@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,44 +10,24 @@ import {
   View,
 } from 'react-native';
 import { api, Section } from '../../src/api/client';
+import { useInvalidateSections, useSections } from '../../src/api/hooks';
 import { Button, EmptyState, Screen, TextField } from '../../src/components';
 import { colors, radius, spacing, typography } from '../../src/theme/theme';
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']; // index+1 = ISO weekday
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function HabitsScreen() {
-  const [sections, setSections] = useState<Section[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [newSection, setNewSection] = useState('');
-
-  const load = useCallback(async () => {
-    try {
-      setSections(await api.listSections());
-    } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to load');
-    }
-  }, []);
-
-  useEffect(() => {
-    load().finally(() => setLoading(false));
-  }, [load]);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  }, [load]);
+  const { data: sections = [], isLoading, isRefetching, refetch } = useSections();
+  const invalidate = useInvalidateSections();
 
   const addSection = async () => {
     const name = newSection.trim();
-    if (!name) {
-      return;
-    }
+    if (!name) return;
     try {
       await api.createSection(name);
       setNewSection('');
-      await load();
+      void invalidate();
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed');
     }
@@ -62,7 +42,7 @@ export default function HabitsScreen() {
         onPress: async () => {
           try {
             await api.deleteSection(section.id);
-            await load();
+            void invalidate();
           } catch (e) {
             Alert.alert('Error', e instanceof Error ? e.message : 'Failed');
           }
@@ -74,13 +54,13 @@ export default function HabitsScreen() {
   const removeHabit = async (habitId: string) => {
     try {
       await api.deleteHabit(habitId);
-      await load();
+      void invalidate();
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed');
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Screen>
         <View style={styles.center}>
@@ -95,7 +75,10 @@ export default function HabitsScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => void refetch()}
+          />
         }
       >
         <Text style={styles.title}>Habits</Text>
@@ -121,7 +104,7 @@ export default function HabitsScreen() {
               section={section}
               onDeleteSection={() => removeSection(section)}
               onDeleteHabit={removeHabit}
-              onChanged={load}
+              onChanged={invalidate}
             />
           ))
         )}
@@ -145,16 +128,13 @@ function SectionCard({
   const [weekday, setWeekday] = useState(1);
   const [busy, setBusy] = useState(false);
 
-  // Notification settings (FR-21/22). Local mirror for optimistic UI.
   const [notifOn, setNotifOn] = useState(section.notificationsEnabled);
   const [reminder, setReminder] = useState(section.reminderTime ?? '21:30');
   const [savingNotif, setSavingNotif] = useState(false);
 
   const addHabit = async () => {
     const t = title.trim();
-    if (!t) {
-      return;
-    }
+    if (!t) return;
     setBusy(true);
     try {
       await api.createHabit(section.id, t, weekday);
@@ -171,20 +151,14 @@ function SectionCard({
 
   const toggleNotif = async () => {
     const next = !notifOn;
-    // When enabling, ensure a valid reminder time is set (default 21:30).
     const time = isValidTime(reminder) ? reminder.trim() : '21:30';
     setNotifOn(next);
-    if (!isValidTime(reminder)) {
-      setReminder(time);
-    }
+    if (!isValidTime(reminder)) setReminder(time);
     setSavingNotif(true);
     try {
-      await api.updateSection(section.id, {
-        notificationsEnabled: next,
-        reminderTime: time,
-      });
+      await api.updateSection(section.id, { notificationsEnabled: next, reminderTime: time });
     } catch (e) {
-      setNotifOn(!next); // revert
+      setNotifOn(!next);
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed');
     } finally {
       setSavingNotif(false);
@@ -211,17 +185,12 @@ function SectionCard({
   const sendTest = async () => {
     try {
       const res = await api.testNotification();
-      if (res.count > 0) {
-        Alert.alert(
-          'Test sent',
-          `${res.count} reminder(s) evaluated for your enabled sections. On a real device with notifications allowed, you'd receive them now.`,
-        );
-      } else {
-        Alert.alert(
-          'Nothing to send',
-          'No enabled section has incomplete habits due today (reminders stay silent when everything is done).',
-        );
-      }
+      Alert.alert(
+        res.count > 0 ? 'Test sent' : 'Nothing to send',
+        res.count > 0
+          ? `${res.count} reminder(s) evaluated. You'd receive them on a real device.`
+          : 'No enabled section has incomplete habits due today.',
+      );
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed');
     }
@@ -259,12 +228,7 @@ function SectionCard({
               style={[styles.dayChip, weekday === wd && styles.dayChipActive]}
               onPress={() => setWeekday(wd)}
             >
-              <Text
-                style={[
-                  styles.dayChipText,
-                  weekday === wd && styles.dayChipTextActive,
-                ]}
-              >
+              <Text style={[styles.dayChipText, weekday === wd && styles.dayChipTextActive]}>
                 {d}
               </Text>
             </Pressable>
@@ -283,15 +247,12 @@ function SectionCard({
         <Button title="Add" onPress={addHabit} loading={busy} style={styles.addBtn} />
       </View>
 
-      {/* Notification opt-in + reminder time (FR-21/22) */}
       <View style={styles.notifBlock}>
         <Pressable style={styles.notifToggleRow} onPress={toggleNotif}>
           <View style={styles.notifLabelWrap}>
             <Text style={styles.notifLabel}>Reminders</Text>
             <Text style={styles.notifHint}>
-              {notifOn
-                ? 'Lists only what you missed, at the time below.'
-                : 'Off — no reminders for this section.'}
+              {notifOn ? 'Lists only what you missed, at the time below.' : 'Off — no reminders for this section.'}
             </Text>
           </View>
           <View style={[styles.switchTrack, notifOn && styles.switchTrackOn]}>
@@ -326,10 +287,7 @@ function SectionCard({
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xl * 2,
-  },
+  content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xl * 2 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   title: { ...typography.screenTitle, marginBottom: spacing.lg },
   addRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -9,7 +9,13 @@ import {
   Text,
   View,
 } from 'react-native';
-import { api, Goal, GoalCategory, GoalScope } from '../../src/api/client';
+import { GoalCategory, GoalScope } from '../../src/api/client';
+import {
+  useCreateGoal,
+  useDeleteGoal,
+  useGoals,
+  useUpdateGoal,
+} from '../../src/api/hooks';
 import {
   Button,
   Checkbox,
@@ -24,71 +30,22 @@ const CATEGORIES: GoalCategory[] = ['STUDY', 'OTHER'];
 
 export default function GoalsScreen() {
   const [scope, setScope] = useState<GoalScope>('WEEKLY');
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [category, setCategory] = useState<GoalCategory>('STUDY');
-  const [adding, setAdding] = useState(false);
 
-  const load = useCallback(async (s: GoalScope) => {
-    try {
-      setGoals(await api.listGoals(s));
-    } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to load');
-    }
-  }, []);
-
-  useEffect(() => {
-    setLoading(true);
-    load(scope).finally(() => setLoading(false));
-  }, [scope, load]);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await load(scope);
-    setRefreshing(false);
-  }, [scope, load]);
+  const { data: goals = [], isLoading, isRefetching, refetch } = useGoals(scope);
+  const createGoal = useCreateGoal(scope);
+  const updateGoal = useUpdateGoal(scope);
+  const deleteGoal = useDeleteGoal(scope);
 
   const addGoal = async () => {
     const title = newTitle.trim();
-    if (!title) {
-      return;
-    }
-    setAdding(true);
+    if (!title) return;
     try {
-      const created = await api.createGoal(scope, category, title);
-      setGoals((prev) => [...prev, created]);
+      await createGoal.mutateAsync({ category, title });
       setNewTitle('');
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to add');
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  const toggle = async (goal: Goal) => {
-    setGoals((prev) =>
-      prev.map((g) => (g.id === goal.id ? { ...g, done: !g.done } : g)),
-    );
-    try {
-      await api.updateGoal(goal.id, { done: !goal.done });
-    } catch {
-      setGoals((prev) =>
-        prev.map((g) => (g.id === goal.id ? { ...g, done: goal.done } : g)),
-      );
-      Alert.alert('Error', 'Failed to update.');
-    }
-  };
-
-  const remove = async (goal: Goal) => {
-    const prev = goals;
-    setGoals((cur) => cur.filter((g) => g.id !== goal.id));
-    try {
-      await api.deleteGoal(goal.id);
-    } catch {
-      setGoals(prev);
-      Alert.alert('Error', 'Failed to delete.');
     }
   };
 
@@ -124,7 +81,12 @@ export default function GoalsScreen() {
           onSubmitEditing={addGoal}
           returnKeyType="done"
         />
-        <Button title="Add" onPress={addGoal} loading={adding} style={styles.addBtn} />
+        <Button
+          title="Add"
+          onPress={addGoal}
+          loading={createGoal.isPending}
+          style={styles.addBtn}
+        />
       </View>
 
       <View style={styles.catRow}>
@@ -141,14 +103,17 @@ export default function GoalsScreen() {
         ))}
       </View>
 
-      {loading ? (
+      {isLoading ? (
         <ActivityIndicator style={{ marginTop: 40 }} size="large" />
       ) : (
         <FlatList
           data={sections}
           keyExtractor={(s) => s.category}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={() => void refetch()}
+            />
           }
           ListEmptyComponent={<EmptyState message="No goals yet. Add one above." />}
           renderItem={({ item: section }) => (
@@ -159,13 +124,18 @@ export default function GoalsScreen() {
               ) : (
                 section.items.map((goal) => (
                   <View key={goal.id} style={styles.item}>
-                    <Pressable style={styles.itemMain} onPress={() => toggle(goal)}>
+                    <Pressable
+                      style={styles.itemMain}
+                      onPress={() =>
+                        updateGoal.mutate({ id: goal.id, data: { done: !goal.done } })
+                      }
+                    >
                       <Checkbox checked={goal.done} />
                       <Text style={[styles.itemText, goal.done && styles.itemDone]}>
                         {goal.title}
                       </Text>
                     </Pressable>
-                    <Pressable onPress={() => remove(goal)} hitSlop={10}>
+                    <Pressable onPress={() => deleteGoal.mutate(goal.id)} hitSlop={10}>
                       <Text style={styles.delete}>✕</Text>
                     </Pressable>
                   </View>

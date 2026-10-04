@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,7 +11,16 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/context/auth-context';
-import { api, Todo, DashboardSummary, DueHabit } from '../../src/api/client';
+import { DashboardSummary, DueHabit, Todo } from '../../src/api/client';
+import {
+  useCompleteHabit,
+  useCreateTodo,
+  useDashboardSummary,
+  useDeleteTodo,
+  useHabitsToday,
+  useTodos,
+  useUpdateTodo,
+} from '../../src/api/hooks';
 import {
   Button,
   Checkbox,
@@ -45,111 +54,51 @@ function ProgressCard({
 export default function TodayScreen() {
   const { user } = useAuth();
   const router = useRouter();
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [habits, setHabits] = useState<DueHabit[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [adding, setAdding] = useState(false);
 
-  const load = useCallback(async () => {
-    try {
-      const [list, sum, due] = await Promise.all([
-        api.listTodayTodos(),
-        api.dashboardSummary(),
-        api.habitsToday(),
-      ]);
-      setTodos(list);
-      setSummary(sum);
-      setHabits(due);
-    } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to load');
-    }
-  }, []);
+  const { data: todos = [], isLoading: loadingTodos, refetch: refetchTodos, isRefetching: refreshingTodos } = useTodos();
+  const { data: summary, refetch: refetchSummary } = useDashboardSummary();
+  const { data: habits = [], isLoading: loadingHabits, refetch: refetchHabits, isRefetching: refreshingHabits } = useHabitsToday();
 
-  useEffect(() => {
-    (async () => {
-      await load();
-      setLoading(false);
-    })();
-  }, [load]);
+  const loading = loadingTodos || loadingHabits;
+  const refreshing = refreshingTodos || refreshingHabits;
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  }, [load]);
+  const onRefresh = () => {
+    void refetchTodos();
+    void refetchSummary();
+    void refetchHabits();
+  };
+
+  const createTodo = useCreateTodo();
+  const updateTodo = useUpdateTodo();
+  const deleteTodo = useDeleteTodo();
+  const completeHabit = useCompleteHabit();
 
   const addTodo = async () => {
     const title = newTitle.trim();
-    if (!title) {
-      return;
-    }
-    setAdding(true);
+    if (!title) return;
     try {
-      const created = await api.createTodo(title);
-      setTodos((prev) => [...prev, created]);
+      await createTodo.mutateAsync(title);
       setNewTitle('');
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to add');
-    } finally {
-      setAdding(false);
     }
   };
 
-  const toggle = async (todo: Todo) => {
-    setTodos((prev) =>
-      prev.map((t) => (t.id === todo.id ? { ...t, done: !t.done } : t)),
-    );
-    try {
-      await api.updateTodo(todo.id, { done: !todo.done });
-    } catch {
-      setTodos((prev) =>
-        prev.map((t) => (t.id === todo.id ? { ...t, done: todo.done } : t)),
-      );
-      Alert.alert('Error', 'Failed to update.');
-    }
+  const toggle = (todo: Todo) => {
+    updateTodo.mutate({ id: todo.id, data: { done: !todo.done } });
   };
 
-  const remove = async (todo: Todo) => {
-    const prev = todos;
-    setTodos((cur) => cur.filter((t) => t.id !== todo.id));
-    try {
-      await api.deleteTodo(todo.id);
-    } catch {
-      setTodos(prev);
-      Alert.alert('Error', 'Failed to delete.');
-    }
+  const remove = (todo: Todo) => {
+    deleteTodo.mutate(todo.id);
   };
 
-  const toggleHabit = async (habit: DueHabit) => {
-    const nextDone = !habit.done;
-    setHabits((prev) =>
-      prev.map((h) =>
-        h.id === habit.id
-          ? {
-              ...h,
-              done: nextDone,
-              streak: nextDone ? h.streak + 1 : Math.max(0, h.streak - 1),
-            }
-          : h,
-      ),
-    );
-    try {
-      if (nextDone) {
-        await api.completeHabit(habit.id);
-      } else {
-        await api.uncompleteHabit(habit.id);
-      }
-    } catch {
-      setHabits((prev) => prev.map((h) => (h.id === habit.id ? habit : h)));
-      Alert.alert('Error', 'Failed to update habit.');
-    }
+  const toggleHabit = (habit: DueHabit) => {
+    completeHabit.mutate({ id: habit.id, done: !habit.done });
   };
 
   const habitSections = Array.from(
-    habits.reduce((map, h) => {
+    (habits as DueHabit[]).reduce((map, h) => {
       const arr = map.get(h.sectionName) ?? [];
       arr.push(h);
       map.set(h.sectionName, arr);
@@ -172,23 +121,23 @@ export default function TodayScreen() {
       <View style={styles.cards}>
         <ProgressCard
           label="Habits"
-          done={habits.filter((h) => h.done).length}
+          done={(habits as DueHabit[]).filter((h) => h.done).length}
           total={habits.length}
         />
         <ProgressCard
           label="To-dos"
-          done={todos.filter((t) => t.done).length}
+          done={(todos as Todo[]).filter((t) => t.done).length}
           total={todos.length}
         />
         <ProgressCard
           label="Weekly"
-          done={summary?.weeklyGoals.done ?? 0}
-          total={summary?.weeklyGoals.total ?? 0}
+          done={(summary as DashboardSummary | undefined)?.weeklyGoals.done ?? 0}
+          total={(summary as DashboardSummary | undefined)?.weeklyGoals.total ?? 0}
         />
         <ProgressCard
           label="Monthly"
-          done={summary?.monthlyGoals.done ?? 0}
-          total={summary?.monthlyGoals.total ?? 0}
+          done={(summary as DashboardSummary | undefined)?.monthlyGoals.done ?? 0}
+          total={(summary as DashboardSummary | undefined)?.monthlyGoals.total ?? 0}
         />
       </View>
 
@@ -201,14 +150,19 @@ export default function TodayScreen() {
           onSubmitEditing={addTodo}
           returnKeyType="done"
         />
-        <Button title="Add" onPress={addTodo} loading={adding} style={styles.addBtn} />
+        <Button
+          title="Add"
+          onPress={addTodo}
+          loading={createTodo.isPending}
+          style={styles.addBtn}
+        />
       </View>
 
       {loading ? (
         <ActivityIndicator style={{ marginTop: 40 }} size="large" />
       ) : (
         <FlatList
-          data={todos}
+          data={todos as Todo[]}
           keyExtractor={(t) => t.id}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -229,9 +183,7 @@ export default function TodayScreen() {
                         >
                           <View style={styles.itemMain}>
                             <Checkbox checked={h.done} />
-                            <Text
-                              style={[styles.itemText, h.done && styles.itemDone]}
-                            >
+                            <Text style={[styles.itemText, h.done && styles.itemDone]}>
                               {h.title}
                             </Text>
                           </View>
