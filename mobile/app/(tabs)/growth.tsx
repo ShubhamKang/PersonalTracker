@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -9,7 +9,13 @@ import {
   Text,
   View,
 } from 'react-native';
-import { api, DevItem, DevItemType } from '../../src/api/client';
+import { DevItem, DevItemType } from '../../src/api/client';
+import {
+  useCreateDevItem,
+  useDeleteDevItem,
+  useDevItems,
+  useUpdateDevItem,
+} from '../../src/api/hooks';
 import {
   Button,
   EmptyState,
@@ -24,66 +30,28 @@ const STEP = 10;
 
 export default function GrowthScreen() {
   const [type, setType] = useState<DevItemType>('PERSONALITY');
-  const [items, setItems] = useState<DevItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [adding, setAdding] = useState(false);
 
-  const load = useCallback(async (t: DevItemType) => {
-    try {
-      setItems(await api.listDevItems(t));
-    } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to load');
-    }
-  }, []);
-
-  useEffect(() => {
-    setLoading(true);
-    load(type).finally(() => setLoading(false));
-  }, [type, load]);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await load(type);
-    setRefreshing(false);
-  }, [type, load]);
+  const { data: items = [], isLoading, isRefetching, refetch } = useDevItems(type);
+  const createDevItem = useCreateDevItem(type);
+  const updateDevItem = useUpdateDevItem(type);
+  const deleteDevItem = useDeleteDevItem(type);
 
   const add = async () => {
     const title = newTitle.trim();
-    if (!title) {
-      return;
-    }
-    setAdding(true);
+    if (!title) return;
     try {
-      const created = await api.createDevItem({ type, title, progress: 0 });
-      setItems((prev) => [...prev, created]);
+      await createDevItem.mutateAsync({ title, progress: 0 });
       setNewTitle('');
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to add');
-    } finally {
-      setAdding(false);
     }
   };
 
-  const setProgress = async (item: DevItem, next: number) => {
+  const setProgress = (item: DevItem, next: number) => {
     const clamped = Math.max(0, Math.min(100, next));
-    if (clamped === item.progress) {
-      return;
-    }
-    setItems((prev) =>
-      prev.map((i) => (i.id === item.id ? { ...i, progress: clamped } : i)),
-    );
-    try {
-      await api.updateDevItem(item.id, { progress: clamped });
-    } catch {
-      setItems((prev) =>
-        prev.map((i) =>
-          i.id === item.id ? { ...i, progress: item.progress } : i,
-        ),
-      );
-      Alert.alert('Error', 'Failed to update progress.');
-    }
+    if (clamped === item.progress) return;
+    updateDevItem.mutate({ id: item.id, data: { progress: clamped } });
   };
 
   const remove = (item: DevItem) => {
@@ -92,16 +60,7 @@ export default function GrowthScreen() {
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: async () => {
-          const prev = items;
-          setItems((cur) => cur.filter((i) => i.id !== item.id));
-          try {
-            await api.deleteDevItem(item.id);
-          } catch {
-            setItems(prev);
-            Alert.alert('Error', 'Failed to delete.');
-          }
-        },
+        onPress: () => deleteDevItem.mutate(item.id),
       },
     ]);
   };
@@ -127,25 +86,26 @@ export default function GrowthScreen() {
       <View style={styles.addRow}>
         <TextField
           style={styles.input}
-          placeholder={`Add a ${
-            type === 'PERSONALITY' ? 'trait' : 'skill'
-          } to develop…`}
+          placeholder={`Add a ${type === 'PERSONALITY' ? 'trait' : 'skill'} to develop…`}
           value={newTitle}
           onChangeText={setNewTitle}
           onSubmitEditing={add}
           returnKeyType="done"
         />
-        <Button title="Add" onPress={add} loading={adding} style={styles.addBtn} />
+        <Button title="Add" onPress={add} loading={createDevItem.isPending} style={styles.addBtn} />
       </View>
 
-      {loading ? (
+      {isLoading ? (
         <ActivityIndicator style={{ marginTop: 40 }} size="large" />
       ) : (
         <FlatList
-          data={items}
+          data={items as DevItem[]}
           keyExtractor={(i) => i.id}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={() => void refetch()}
+            />
           }
           ListEmptyComponent={
             <EmptyState message="Nothing tracked yet. Add one above." />

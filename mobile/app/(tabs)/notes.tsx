@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,7 +12,13 @@ import {
   Text,
   View,
 } from 'react-native';
-import { api, Note } from '../../src/api/client';
+import { Note } from '../../src/api/client';
+import {
+  useCreateNote,
+  useDeleteNote,
+  useNotes,
+  useUpdateNote,
+} from '../../src/api/hooks';
 import {
   Button,
   Checkbox,
@@ -23,34 +29,16 @@ import {
 import { colors, radius, spacing, typography } from '../../src/theme/theme';
 
 export default function NotesScreen() {
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { data: notes = [], isLoading, isRefetching, refetch } = useNotes();
 
   const [editing, setEditing] = useState<Note | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftContent, setDraftContent] = useState('');
   const [draftPinned, setDraftPinned] = useState(false);
-  const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    try {
-      setNotes(await api.listNotes());
-    } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to load');
-    }
-  }, []);
-
-  useEffect(() => {
-    setLoading(true);
-    load().finally(() => setLoading(false));
-  }, [load]);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  }, [load]);
+  const createNote = useCreateNote();
+  const updateNote = useUpdateNote();
+  const deleteNote = useDeleteNote();
 
   const openNew = () => {
     setEditing({ id: '', userId: '', title: '', content: '', pinned: false });
@@ -74,48 +62,27 @@ export default function NotesScreen() {
       Alert.alert('Title required', 'Please enter a title.');
       return;
     }
-    setSaving(true);
     try {
       if (editing && editing.id) {
-        const updated = await api.updateNote(editing.id, {
-          title,
-          content: draftContent,
-          pinned: draftPinned,
+        await updateNote.mutateAsync({
+          id: editing.id,
+          data: { title, content: draftContent, pinned: draftPinned },
         });
-        setNotes((prev) =>
-          sortNotes(prev.map((n) => (n.id === updated.id ? updated : n))),
-        );
       } else {
-        const created = await api.createNote({
+        await createNote.mutateAsync({
           title,
           content: draftContent,
           pinned: draftPinned,
         });
-        setNotes((prev) => sortNotes([created, ...prev]));
       }
       closeEditor();
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save');
-    } finally {
-      setSaving(false);
     }
   };
 
-  const togglePin = async (note: Note) => {
-    const next = !note.pinned;
-    setNotes((prev) =>
-      sortNotes(prev.map((n) => (n.id === note.id ? { ...n, pinned: next } : n))),
-    );
-    try {
-      await api.updateNote(note.id, { pinned: next });
-    } catch {
-      setNotes((prev) =>
-        sortNotes(
-          prev.map((n) => (n.id === note.id ? { ...n, pinned: note.pinned } : n)),
-        ),
-      );
-      Alert.alert('Error', 'Failed to update pin.');
-    }
+  const togglePin = (note: Note) => {
+    updateNote.mutate({ id: note.id, data: { pinned: !note.pinned } });
   };
 
   const remove = (note: Note) => {
@@ -124,19 +91,12 @@ export default function NotesScreen() {
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: async () => {
-          const prev = notes;
-          setNotes((cur) => cur.filter((n) => n.id !== note.id));
-          try {
-            await api.deleteNote(note.id);
-          } catch {
-            setNotes(prev);
-            Alert.alert('Error', 'Failed to delete.');
-          }
-        },
+        onPress: () => deleteNote.mutate(note.id),
       },
     ]);
   };
+
+  const saving = createNote.isPending || updateNote.isPending;
 
   return (
     <Screen>
@@ -147,16 +107,19 @@ export default function NotesScreen() {
         </Pressable>
       </View>
 
-      {loading ? (
+      {isLoading ? (
         <ActivityIndicator style={{ marginTop: 40 }} size="large" />
       ) : (
         <FlatList
-          data={notes}
+          data={notes as Note[]}
           keyExtractor={(n) => n.id}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={() => void refetch()}
+            />
           }
-          ListEmptyComponent={<EmptyState message="No notes yet. Tap “+ New”." />}
+          ListEmptyComponent={<EmptyState message={'No notes yet. Tap "+ New".'} />}
           renderItem={({ item }) => (
             <Pressable style={styles.card} onPress={() => openEdit(item)}>
               <View style={styles.cardHeader}>
@@ -237,11 +200,6 @@ export default function NotesScreen() {
       </Modal>
     </Screen>
   );
-}
-
-/** Pinned first, then keep existing (server-provided, roughly newest-first) order. */
-function sortNotes(list: Note[]): Note[] {
-  return [...list].sort((a, b) => Number(b.pinned) - Number(a.pinned));
 }
 
 const styles = StyleSheet.create({

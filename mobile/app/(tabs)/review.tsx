@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,33 +10,13 @@ import {
   View,
 } from 'react-native';
 import { api, Progress, WeeklyReview } from '../../src/api/client';
+import { useWeeklyReview } from '../../src/api/hooks';
 import { Button, ProgressBar, Screen } from '../../src/components';
 import { colors, radius, spacing, typography } from '../../src/theme/theme';
 
 export default function ReviewScreen() {
-  const [review, setReview] = useState<WeeklyReview | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { data: review, isLoading, isRefetching, refetch } = useWeeklyReview();
   const [exporting, setExporting] = useState(false);
-
-  const load = useCallback(async () => {
-    try {
-      setReview(await api.weeklyReview());
-    } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to load');
-    }
-  }, []);
-
-  useEffect(() => {
-    setLoading(true);
-    load().finally(() => setLoading(false));
-  }, [load]);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  }, [load]);
 
   const exportData = async () => {
     setExporting(true);
@@ -53,7 +33,7 @@ export default function ReviewScreen() {
 
   return (
     <Screen padded={false}>
-      {loading ? (
+      {isLoading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" />
         </View>
@@ -61,7 +41,10 @@ export default function ReviewScreen() {
         <ScrollView
           contentContainerStyle={styles.content}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={() => void refetch()}
+            />
           }
         >
           <Text style={styles.title}>Weekly Review</Text>
@@ -69,28 +52,30 @@ export default function ReviewScreen() {
           {review && (
             <>
               <Text style={styles.range}>
-                {review.weekStart} → {review.weekEnd}
+                {(review as WeeklyReview).weekStart} → {(review as WeeklyReview).weekEnd}
               </Text>
 
               <View style={styles.rateCard}>
-                <Text style={styles.rateValue}>{review.completionRate}%</Text>
+                <Text style={styles.rateValue}>
+                  {(review as WeeklyReview).completionRate}%
+                </Text>
                 <Text style={styles.rateLabel}>overall completion</Text>
                 <ProgressBar
-                  percent={review.completionRate}
+                  percent={(review as WeeklyReview).completionRate}
                   color={colors.success}
                   trackColor={colors.primaryDark}
                 />
               </View>
 
-              <StatRow label="To-dos" p={review.todos} />
-              <StatRow label="Weekly goals" p={review.weeklyGoals} />
-              <StatRow label="Monthly goals" p={review.monthlyGoals} />
-              <StatRow label="Habits (this week)" p={review.habits} />
+              <StatRow label="To-dos" p={(review as WeeklyReview).todos} />
+              <StatRow label="Weekly goals" p={(review as WeeklyReview).weeklyGoals} />
+              <StatRow label="Monthly goals" p={(review as WeeklyReview).monthlyGoals} />
+              <StatRow label="Habits (this week)" p={(review as WeeklyReview).habits} />
 
-              {review.habitBreakdown.length > 0 && (
+              {(review as WeeklyReview).habitBreakdown.length > 0 && (
                 <View style={styles.section}>
                   <Text style={styles.sectionHeader}>HABIT BREAKDOWN</Text>
-                  {review.habitBreakdown.map((h, idx) => (
+                  {(review as WeeklyReview).habitBreakdown.map((h, idx) => (
                     <View key={`${h.title}-${idx}`} style={styles.habitRow}>
                       <Text style={styles.habitTitle} numberOfLines={1}>
                         {h.title}
@@ -125,8 +110,7 @@ export default function ReviewScreen() {
             style={styles.exportBtn}
           />
           <Text style={styles.exportHint}>
-            Exports all your todos, goals, habits, notes, and growth items as
-            JSON.
+            Exports all your todos, goals, habits, notes, and growth items as JSON.
           </Text>
         </ScrollView>
       )}
@@ -162,11 +146,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   rateValue: { color: colors.onDark, fontSize: 44, fontWeight: '800' },
-  rateLabel: {
-    color: colors.onDarkMuted,
-    marginTop: 2,
-    marginBottom: spacing.md,
-  },
+  rateLabel: { color: colors.onDarkMuted, marginTop: 2, marginBottom: spacing.md },
   statCard: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -182,11 +162,7 @@ const styles = StyleSheet.create({
   statLabel: { ...typography.label, color: colors.text },
   statCount: { fontSize: 15, fontWeight: '700', color: colors.ink },
   section: { marginTop: spacing.md, marginBottom: spacing.sm },
-  sectionHeader: {
-    ...typography.overline,
-    color: colors.muted,
-    marginBottom: spacing.sm,
-  },
+  sectionHeader: { ...typography.overline, color: colors.muted, marginBottom: spacing.sm },
   habitRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -201,10 +177,5 @@ const styles = StyleSheet.create({
   habitMissed: { color: colors.danger },
   habitNa: { color: colors.faint },
   exportBtn: { marginTop: spacing.xxl },
-  exportHint: {
-    color: colors.faint,
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-  },
+  exportHint: { color: colors.faint, fontSize: 12, textAlign: 'center', marginTop: spacing.sm },
 });
