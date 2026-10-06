@@ -1,13 +1,13 @@
 # ---- Build stage ----
-# Pin a specific Node version for reproducible builds on free hosts.
 FROM node:22-alpine AS build
 WORKDIR /app
 
-# Install deps (including dev) using the lockfile for reproducibility.
+# OpenSSL is needed at build time for Prisma to generate the client.
+RUN apk add --no-cache openssl
+
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Generate the Prisma client, then compile TypeScript -> dist/.
 COPY prisma ./prisma
 RUN npx prisma generate
 
@@ -18,20 +18,20 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 # ---- Runtime stage ----
-FROM node:22-alpine AS runtime
+# Use the Debian slim variant — it ships with libssl which Prisma's query
+# engine binary requires at runtime. Alpine lacks it by default.
+FROM node:22-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Copy only what the app needs to run.
+# Install OpenSSL so Prisma's query engine can load.
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/package.json ./package.json
 
-# Hosting platforms inject PORT; the app reads process.env.PORT (defaults 3000).
 EXPOSE 3000
 
-# Apply any pending DB migrations, then start the compiled server.
-# Uses node_modules/.bin/prisma directly — avoids npx resolution issues in
-# stripped runtime images where the global npm cache is not available.
 CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node dist/main.js"]
