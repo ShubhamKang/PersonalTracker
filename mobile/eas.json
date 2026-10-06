@@ -21,7 +21,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REPLACE-WITH-YOUR-BACKEND-URL"
+        "EXPO_PUBLIC_API_URL": "https://personal-tracker-backend-y6eu.onrender.com"
       }
     },
 
@@ -32,7 +32,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REPLACE-WITH-YOUR-BACKEND-URL"
+        "EXPO_PUBLIC_API_URL": "https://personal-tracker-backend-y6eu.onrender.com"
       }
     }
   },
