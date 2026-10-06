@@ -21,17 +21,16 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png"
-        }
-      ]
+      "expo-notifications"
     ],
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "5c5e8a0c-5de5-43e8-8ffd-5c70a23aa893"
       }
-    }
+    },
+    "owner": "shubhamkang"
   }
 }

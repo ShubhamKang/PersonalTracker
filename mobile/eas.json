@@ -4,8 +4,6 @@
     "appVersionSource": "local"
   },
   "build": {
-    "//": "All Android profiles emit .apk (buildType: apk), never .aab.",
-
     "development": {
       "developmentClient": true,
       "distribution": "internal",
