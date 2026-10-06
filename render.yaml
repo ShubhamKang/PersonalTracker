@@ -1,39 +1,32 @@
 # Render Blueprint — free-tier backend deploy.
 # Docs: https://render.com/docs/blueprint-spec
 #
-# NOTE ON "FREE": Render's free web service sleeps after ~15 min of inactivity
-# and cold-starts on the next request (~30s). While asleep, the 15-minute
-# notification cron does NOT run. That's acceptable for a personal app; if you
-# need always-on cron on a free tier, see Fly.io notes in DEPLOY.md.
+# NOTE ON FREE TIER: Render's free web service sleeps after ~15 min of
+# inactivity and cold-starts (~30s) on the next request. While asleep the
+# 15-min notification cron does not run. Acceptable for a personal app.
 #
-# We do NOT use Render's managed Postgres here because its free database
-# expires after 30 days. Instead, use a free Neon/Supabase Postgres and paste
-# its connection string into DATABASE_URL below (set in the dashboard).
+# DATABASE: We use a free Neon Postgres (https://neon.tech) instead of
+# Render's managed Postgres because Render's free DB expires after 30 days.
+# Paste your Neon connection string into DATABASE_URL via the dashboard.
 
 services:
   - type: web
     name: personal-tracker-backend
     runtime: docker
-    plan: free
     rootDir: backend
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
     autoDeploy: true
     envVars:
-      # Provided at runtime by Render.
       - key: PORT
         value: 10000
-      # Paste your free Neon/Supabase Postgres URL in the dashboard (secret).
       - key: DATABASE_URL
         sync: false
-      # Generate once:
-      #   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 7d
-      # Optional — leave blank to keep Google sign-in disabled.
       - key: GOOGLE_CLIENT_ID
-        sync: false
+        value: ""
       - key: GOOGLE_CLIENT_SECRET
-        sync: false
+        value: ""

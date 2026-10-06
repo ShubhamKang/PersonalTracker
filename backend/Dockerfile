@@ -32,5 +32,6 @@ COPY --from=build /app/package.json ./package.json
 EXPOSE 3000
 
 # Apply any pending DB migrations, then start the compiled server.
-# `migrate deploy` is safe/idempotent: it only runs unapplied migrations.
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+# Uses node_modules/.bin/prisma directly — avoids npx resolution issues in
+# stripped runtime images where the global npm cache is not available.
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node dist/main.js"]
