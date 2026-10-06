@@ -1,9 +1,12 @@
+# Both stages use the same Debian-slim base so the Prisma query engine
+# generated at build time matches the runtime platform exactly.
+
 # ---- Build stage ----
-FROM node:22-alpine AS build
+FROM node:22-slim AS build
 WORKDIR /app
 
-# OpenSSL is needed at build time for Prisma to generate the client.
-RUN apk add --no-cache openssl
+# OpenSSL is required by Prisma at both generate and runtime.
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -14,17 +17,14 @@ RUN npx prisma generate
 COPY . .
 RUN npm run build
 
-# Drop dev dependencies so the runtime image is smaller.
+# Drop dev deps to keep the runtime image lean.
 RUN npm prune --omit=dev
 
 # ---- Runtime stage ----
-# Use the Debian slim variant — it ships with libssl which Prisma's query
-# engine binary requires at runtime. Alpine lacks it by default.
 FROM node:22-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Install OpenSSL so Prisma's query engine can load.
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/node_modules ./node_modules
