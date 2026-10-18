@@ -1,12 +1,14 @@
-import { ReactNode, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   StyleProp,
   StyleSheet,
   Text,
+  View,
   ViewStyle,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/theme-context';
 import { Colors, radius, spacing } from '../theme/theme';
 
@@ -18,8 +20,9 @@ interface ButtonProps {
   loading?: boolean;
   disabled?: boolean;
   variant?: Variant;
+  /** Optional leading icon, rendered before the title. */
+  icon?: keyof typeof Ionicons.glyphMap;
   style?: StyleProp<ViewStyle>;
-  children?: ReactNode;
 }
 
 /** App-wide button with consistent sizing, colors, loading state, and press feedback. */
@@ -29,11 +32,13 @@ export function Button({
   loading = false,
   disabled = false,
   variant = 'primary',
+  icon,
   style,
 }: ButtonProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isDisabled = disabled || loading;
+  const textColor = variant === 'secondary' ? colors.text : '#fff';
   return (
     <Pressable
       accessibilityRole="button"
@@ -49,16 +54,19 @@ export function Button({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'secondary' ? colors.text : '#fff'} />
+        <ActivityIndicator color={textColor} />
       ) : (
-        <Text
-          style={[
-            styles.text,
-            variant === 'secondary' && styles.textSecondary,
-          ]}
-        >
-          {title}
-        </Text>
+        <View style={styles.content}>
+          {icon && <Ionicons name={icon} size={16} color={textColor} />}
+          <Text
+            style={[
+              styles.text,
+              variant === 'secondary' && styles.textSecondary,
+            ]}
+          >
+            {title}
+          </Text>
+        </View>
       )}
     </Pressable>
   );
@@ -79,6 +87,7 @@ function createStyles(colors: Colors) {
     danger: { backgroundColor: colors.danger },
     disabled: { backgroundColor: colors.primaryDisabled },
     pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+    content: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     text: { color: '#fff', fontSize: 16, fontWeight: '700' },
     textSecondary: { color: colors.text },
   });

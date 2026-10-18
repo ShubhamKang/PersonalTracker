@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -9,12 +9,16 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { api, Progress, WeeklyReview } from '../../src/api/client';
 import { useWeeklyReview } from '../../src/api/hooks';
 import { Button, ProgressBar, Screen } from '../../src/components';
-import { colors, radius, spacing, typography } from '../../src/theme/theme';
+import { useTheme } from '../../src/theme/theme-context';
+import { Colors, radius, spacing, typography } from '../../src/theme/theme';
 
 export default function ReviewScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { data: review, isLoading, isRefetching, refetch } = useWeeklyReview();
   const [exporting, setExporting] = useState(false);
 
@@ -35,7 +39,7 @@ export default function ReviewScreen() {
     <Screen padded={false}>
       {isLoading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <ScrollView
@@ -67,10 +71,10 @@ export default function ReviewScreen() {
                 />
               </View>
 
-              <StatRow label="To-dos" p={(review as WeeklyReview).todos} />
-              <StatRow label="Weekly goals" p={(review as WeeklyReview).weeklyGoals} />
-              <StatRow label="Monthly goals" p={(review as WeeklyReview).monthlyGoals} />
-              <StatRow label="Habits (this week)" p={(review as WeeklyReview).habits} />
+              <StatRow label="To-dos" p={(review as WeeklyReview).todos} colors={colors} styles={styles} />
+              <StatRow label="Weekly goals" p={(review as WeeklyReview).weeklyGoals} colors={colors} styles={styles} />
+              <StatRow label="Monthly goals" p={(review as WeeklyReview).monthlyGoals} colors={colors} styles={styles} />
+              <StatRow label="Habits (this week)" p={(review as WeeklyReview).habits} colors={colors} styles={styles} />
 
               {(review as WeeklyReview).habitBreakdown.length > 0 && (
                 <View style={styles.section}>
@@ -107,6 +111,7 @@ export default function ReviewScreen() {
             title={exporting ? 'Preparing…' : 'Export my data'}
             onPress={exportData}
             loading={exporting}
+            icon="share-outline"
             style={styles.exportBtn}
           />
           <Text style={styles.exportHint}>
@@ -118,7 +123,17 @@ export default function ReviewScreen() {
   );
 }
 
-function StatRow({ label, p }: { label: string; p: Progress }) {
+function StatRow({
+  label,
+  p,
+  colors,
+  styles,
+}: {
+  label: string;
+  p: Progress;
+  colors: Colors;
+  styles: ReturnType<typeof createStyles>;
+}) {
   const pct = p.total === 0 ? 0 : Math.round((p.done / p.total) * 100);
   return (
     <View style={styles.statCard}>
@@ -128,54 +143,56 @@ function StatRow({ label, p }: { label: string; p: Progress }) {
           {p.done}/{p.total}
         </Text>
       </View>
-      <ProgressBar percent={pct} />
+      <ProgressBar percent={pct} color={colors.primary} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: spacing.xl, paddingBottom: spacing.xl * 2 },
-  title: typography.screenTitle,
-  range: { color: colors.muted, marginTop: spacing.xs, marginBottom: spacing.lg },
-  rateCard: {
-    backgroundColor: colors.ink,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
-  rateValue: { color: colors.onDark, fontSize: 44, fontWeight: '800' },
-  rateLabel: { color: colors.onDarkMuted, marginTop: 2, marginBottom: spacing.md },
-  statCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  statTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  statLabel: { ...typography.label, color: colors.text },
-  statCount: { fontSize: 15, fontWeight: '700', color: colors.ink },
-  section: { marginTop: spacing.md, marginBottom: spacing.sm },
-  sectionHeader: { ...typography.overline, color: colors.muted, marginBottom: spacing.sm },
-  habitRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm + 2,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceAlt,
-  },
-  habitTitle: { fontSize: 15, color: colors.ink, flex: 1, marginRight: spacing.md },
-  habitStatus: { fontSize: 13, fontWeight: '600' },
-  habitDone: { color: colors.successDark },
-  habitMissed: { color: colors.danger },
-  habitNa: { color: colors.faint },
-  exportBtn: { marginTop: spacing.xxl },
-  exportHint: { color: colors.faint, fontSize: 12, textAlign: 'center', marginTop: spacing.sm },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    content: { padding: spacing.xl, paddingBottom: spacing.xl * 2 },
+    title: { ...typography.screenTitle, color: colors.ink },
+    range: { color: colors.muted, marginTop: spacing.xs, marginBottom: spacing.lg },
+    rateCard: {
+      backgroundColor: colors.primaryDark,
+      borderRadius: radius.xl,
+      padding: spacing.xl,
+      alignItems: 'center',
+      marginBottom: spacing.xl,
+    },
+    rateValue: { color: colors.onDark, fontSize: 44, fontWeight: '800' },
+    rateLabel: { color: colors.onDarkMuted, marginTop: 2, marginBottom: spacing.md },
+    statCard: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.lg,
+      padding: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    statTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: spacing.sm,
+    },
+    statLabel: { ...typography.label, color: colors.text },
+    statCount: { fontSize: 15, fontWeight: '700', color: colors.ink },
+    section: { marginTop: spacing.md, marginBottom: spacing.sm },
+    sectionHeader: { ...typography.overline, color: colors.muted, marginBottom: spacing.sm },
+    habitRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: spacing.sm + 2,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.surfaceAlt,
+    },
+    habitTitle: { fontSize: 15, color: colors.ink, flex: 1, marginRight: spacing.md },
+    habitStatus: { fontSize: 13, fontWeight: '600' },
+    habitDone: { color: colors.successDark },
+    habitMissed: { color: colors.danger },
+    habitNa: { color: colors.faint },
+    exportBtn: { marginTop: spacing.xxl, flexDirection: 'row', gap: spacing.sm },
+    exportHint: { color: colors.faint, fontSize: 12, textAlign: 'center', marginTop: spacing.sm },
+  });
+}
