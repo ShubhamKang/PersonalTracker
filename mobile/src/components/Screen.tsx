@@ -1,7 +1,8 @@
-import { ReactNode } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing } from '../theme/theme';
+import { useTheme } from '../theme/theme-context';
+import { Colors, spacing } from '../theme/theme';
 
 interface ScreenProps {
   children: ReactNode;
@@ -17,6 +18,8 @@ interface ScreenProps {
  */
 export function Screen({ children, padded = true, style }: ScreenProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View
       style={[
@@ -33,6 +36,8 @@ export function Screen({ children, padded = true, style }: ScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+  });
+}

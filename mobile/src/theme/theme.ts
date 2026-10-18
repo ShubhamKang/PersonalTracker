@@ -2,9 +2,13 @@
  * Central design tokens for the app. Screens and shared components should
  * reference these instead of hardcoding colors/spacing so the UI stays
  * consistent and is easy to retheme in one place.
+ *
+ * Colors are split into light/dark palettes with identical keys; use
+ * `useTheme()` from `./theme-context` to read the active one instead of
+ * importing a palette directly, so screens react to theme changes.
  */
 
-export const colors = {
+export const lightColors = {
   // Brand / accent
   primary: '#2563eb',
   primaryDark: '#1e293b',
@@ -32,10 +36,43 @@ export const colors = {
   borderStrong: '#cbd5e1',
   divider: '#eef2f7',
 
-  // On-dark
+  // On-dark (deliberately-dark decorative surfaces, e.g. the Review rate card)
   onDark: '#ffffff',
   onDarkMuted: '#94a3b8',
 } as const;
+
+export const darkColors: typeof lightColors = {
+  // Brand / accent
+  primary: '#3b82f6',
+  primaryDark: '#0b1220',
+  primaryDisabled: '#1e3a5f',
+
+  // Semantic
+  success: '#22c55e',
+  successDark: '#4ade80',
+  danger: '#f87171',
+  dangerSoft: '#fca5a5',
+  warning: '#fb923c',
+
+  // Ink / text
+  ink: '#f1f5f9',
+  text: '#cbd5e1',
+  muted: '#94a3b8',
+  faint: '#64748b',
+  disabledText: '#475569',
+
+  // Surfaces
+  background: '#0b1220',
+  surface: '#111827',
+  surfaceAlt: '#1e293b',
+  border: '#243244',
+  borderStrong: '#334155',
+  divider: '#1f2937',
+
+  // On-dark
+  onDark: '#ffffff',
+  onDarkMuted: '#94a3b8',
+};
 
 export const spacing = {
   xs: 4,
@@ -67,5 +104,17 @@ export const typography = {
   },
 } as const;
 
-export const theme = { colors, spacing, radius, typography };
+export const iconSize = {
+  sm: 16,
+  md: 20,
+  lg: 24,
+} as const;
+
+export type Colors = typeof lightColors;
+export type ColorScheme = 'light' | 'dark';
+
+/** @deprecated Use `useTheme().colors` so the app reacts to theme changes. */
+export const colors = lightColors;
+
+export const theme = { colors: lightColors, spacing, radius, typography };
 export type Theme = typeof theme;

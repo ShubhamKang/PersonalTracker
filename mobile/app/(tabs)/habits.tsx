@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -6,17 +6,23 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { api, Section } from '../../src/api/client';
 import { useInvalidateSections, useSections } from '../../src/api/hooks';
 import { Button, EmptyState, Screen, TextField } from '../../src/components';
-import { colors, radius, spacing, typography } from '../../src/theme/theme';
+import { useTheme } from '../../src/theme/theme-context';
+import { Colors, radius, spacing, typography } from '../../src/theme/theme';
+import { haptics } from '../../src/lib/haptics';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function HabitsScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [newSection, setNewSection] = useState('');
   const { data: sections = [], isLoading, isRefetching, refetch } = useSections();
   const invalidate = useInvalidateSections();
@@ -40,6 +46,7 @@ export default function HabitsScreen() {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
+          haptics.warning();
           try {
             await api.deleteSection(section.id);
             void invalidate();
@@ -52,6 +59,7 @@ export default function HabitsScreen() {
   };
 
   const removeHabit = async (habitId: string) => {
+    haptics.warning();
     try {
       await api.deleteHabit(habitId);
       void invalidate();
@@ -64,7 +72,7 @@ export default function HabitsScreen() {
     return (
       <Screen>
         <View style={styles.center}>
-          <ActivityIndicator size="large" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </Screen>
     );
@@ -124,6 +132,8 @@ function SectionCard({
   onDeleteHabit: (habitId: string) => void;
   onChanged: () => Promise<void>;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [title, setTitle] = useState('');
   const [weekday, setWeekday] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -147,9 +157,15 @@ function SectionCard({
     }
   };
 
+  const selectWeekday = (wd: number) => {
+    haptics.selection();
+    setWeekday(wd);
+  };
+
   const isValidTime = (s: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(s.trim());
 
   const toggleNotif = async () => {
+    haptics.selection();
     const next = !notifOn;
     const time = isValidTime(reminder) ? reminder.trim() : '21:30';
     setNotifOn(next);
@@ -213,7 +229,7 @@ function SectionCard({
             <Text style={styles.habitDay}>{WEEKDAYS[h.weekday - 1]}</Text>
             <Text style={styles.habitTitle}>{h.title}</Text>
             <Pressable onPress={() => onDeleteHabit(h.id)} hitSlop={8}>
-              <Text style={styles.habitDelete}>✕</Text>
+              <Ionicons name="trash-outline" size={16} color={colors.disabledText} />
             </Pressable>
           </View>
         ))
@@ -226,7 +242,7 @@ function SectionCard({
             <Pressable
               key={d}
               style={[styles.dayChip, weekday === wd && styles.dayChipActive]}
-              onPress={() => setWeekday(wd)}
+              onPress={() => selectWeekday(wd)}
             >
               <Text style={[styles.dayChipText, weekday === wd && styles.dayChipTextActive]}>
                 {d}
@@ -248,17 +264,20 @@ function SectionCard({
       </View>
 
       <View style={styles.notifBlock}>
-        <Pressable style={styles.notifToggleRow} onPress={toggleNotif}>
+        <View style={styles.notifToggleRow}>
           <View style={styles.notifLabelWrap}>
             <Text style={styles.notifLabel}>Reminders</Text>
             <Text style={styles.notifHint}>
               {notifOn ? 'Lists only what you missed, at the time below.' : 'Off — no reminders for this section.'}
             </Text>
           </View>
-          <View style={[styles.switchTrack, notifOn && styles.switchTrackOn]}>
-            <View style={[styles.switchThumb, notifOn && styles.switchThumbOn]} />
-          </View>
-        </Pressable>
+          <Switch
+            value={notifOn}
+            onValueChange={toggleNotif}
+            trackColor={{ false: colors.borderStrong, true: colors.success }}
+            thumbColor={colors.onDark}
+          />
+        </View>
 
         {notifOn && (
           <View style={styles.reminderRow}>
@@ -275,8 +294,9 @@ function SectionCard({
               returnKeyType="done"
             />
             <Text style={styles.reminderHint}>24-hour HH:MM</Text>
-            {savingNotif && <ActivityIndicator style={{ marginLeft: 6 }} />}
+            {savingNotif && <ActivityIndicator style={{ marginLeft: 6 }} color={colors.primary} />}
             <Pressable style={styles.testBtn} onPress={sendTest} hitSlop={6}>
+              <Ionicons name="notifications-outline" size={13} color={colors.primary} />
               <Text style={styles.testBtnText}>Send test</Text>
             </Pressable>
           </View>
@@ -286,106 +306,93 @@ function SectionCard({
   );
 }
 
-const styles = StyleSheet.create({
-  content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xl * 2 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { ...typography.screenTitle, marginBottom: spacing.lg },
-  addRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
-  input: { flex: 1 },
-  addBtn: { minWidth: 60 },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  sectionName: { ...typography.sectionTitle },
-  delete: { color: colors.dangerSoft, fontWeight: '600', fontSize: 13 },
-  noHabits: { color: colors.disabledText, fontStyle: 'italic', marginBottom: spacing.md },
-  habitRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-    gap: spacing.md,
-  },
-  habitDay: { width: 40, fontWeight: '700', color: colors.primary, fontSize: 13 },
-  habitTitle: { flex: 1, fontSize: 15, color: colors.ink },
-  habitDelete: { color: colors.disabledText, fontSize: 16 },
-  weekdayRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs + 2,
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-  },
-  dayChip: {
-    paddingHorizontal: spacing.md - 2,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: radius.lg + 2,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  dayChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  dayChipText: { fontSize: 12, color: colors.text, fontWeight: '600' },
-  dayChipTextActive: { color: colors.onDark },
-  notifBlock: {
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  notifToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  notifLabelWrap: { flex: 1, marginRight: spacing.md },
-  notifLabel: { ...typography.label, color: colors.ink },
-  notifHint: { fontSize: 12, color: colors.muted, marginTop: 2 },
-  switchTrack: {
-    width: 48,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.borderStrong,
-    padding: 2,
-    justifyContent: 'center',
-  },
-  switchTrackOn: { backgroundColor: colors.success },
-  switchThumb: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.onDark,
-    alignSelf: 'flex-start',
-  },
-  switchThumbOn: { alignSelf: 'flex-end' },
-  reminderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.md,
-    gap: spacing.sm,
-    flexWrap: 'wrap',
-  },
-  reminderLabel: { color: colors.text, fontWeight: '600' },
-  timeInput: { width: 84, textAlign: 'center' },
-  reminderHint: { fontSize: 11, color: colors.faint },
-  testBtn: {
-    marginLeft: 'auto',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  testBtnText: { color: colors.primary, fontWeight: '600', fontSize: 12 },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xl * 2 },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    title: { ...typography.screenTitle, marginBottom: spacing.lg },
+    addRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
+    input: { flex: 1 },
+    addBtn: { minWidth: 60 },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      padding: spacing.lg,
+      marginBottom: spacing.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    sectionName: { ...typography.sectionTitle, color: colors.ink },
+    delete: { color: colors.dangerSoft, fontWeight: '600', fontSize: 13 },
+    noHabits: { color: colors.disabledText, fontStyle: 'italic', marginBottom: spacing.md },
+    habitRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+      gap: spacing.md,
+    },
+    habitDay: { width: 40, fontWeight: '700', color: colors.primary, fontSize: 13 },
+    habitTitle: { flex: 1, fontSize: 15, color: colors.ink },
+    weekdayRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xs + 2,
+      marginTop: spacing.md,
+      marginBottom: spacing.md,
+    },
+    dayChip: {
+      paddingHorizontal: spacing.md - 2,
+      paddingVertical: spacing.xs + 2,
+      borderRadius: radius.lg + 2,
+      borderWidth: 1,
+      borderColor: colors.borderStrong,
+    },
+    dayChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    dayChipText: { fontSize: 12, color: colors.text, fontWeight: '600' },
+    dayChipTextActive: { color: colors.onDark },
+    notifBlock: {
+      marginTop: spacing.md,
+      paddingTop: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    notifToggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    notifLabelWrap: { flex: 1, marginRight: spacing.md },
+    notifLabel: { ...typography.label, color: colors.ink },
+    notifHint: { fontSize: 12, color: colors.muted, marginTop: 2 },
+    reminderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: spacing.md,
+      gap: spacing.sm,
+      flexWrap: 'wrap',
+    },
+    reminderLabel: { color: colors.text, fontWeight: '600' },
+    timeInput: { width: 84, textAlign: 'center' },
+    reminderHint: { fontSize: 11, color: colors.faint },
+    testBtn: {
+      marginLeft: 'auto',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs + 2,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    testBtnText: { color: colors.primary, fontWeight: '600', fontSize: 12 },
+  });
+}

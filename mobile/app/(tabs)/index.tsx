@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/auth-context';
 import { DashboardSummary, DueHabit, Todo } from '../../src/api/client';
 import {
@@ -29,16 +30,20 @@ import {
   SectionHeading,
   TextField,
 } from '../../src/components';
-import { colors, radius, spacing, typography } from '../../src/theme/theme';
+import { useTheme } from '../../src/theme/theme-context';
+import { Colors, radius, spacing, typography } from '../../src/theme/theme';
+import { haptics } from '../../src/lib/haptics';
 
 function ProgressCard({
   label,
   done,
   total,
+  styles,
 }: {
   label: string;
   done: number;
   total: number;
+  styles: ReturnType<typeof createStyles>;
 }) {
   const allDone = total > 0 && done === total;
   return (
@@ -53,6 +58,8 @@ function ProgressCard({
 
 export default function TodayScreen() {
   const { user } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const [newTitle, setNewTitle] = useState('');
 
@@ -86,14 +93,17 @@ export default function TodayScreen() {
   };
 
   const toggle = (todo: Todo) => {
+    haptics.tap();
     updateTodo.mutate({ id: todo.id, data: { done: !todo.done } });
   };
 
   const remove = (todo: Todo) => {
+    haptics.warning();
     deleteTodo.mutate(todo.id);
   };
 
   const toggleHabit = (habit: DueHabit) => {
+    haptics.tap();
     completeHabit.mutate({ id: habit.id, done: !habit.done });
   };
 
@@ -123,21 +133,25 @@ export default function TodayScreen() {
           label="Habits"
           done={(habits as DueHabit[]).filter((h) => h.done).length}
           total={habits.length}
+          styles={styles}
         />
         <ProgressCard
           label="To-dos"
           done={(todos as Todo[]).filter((t) => t.done).length}
           total={todos.length}
+          styles={styles}
         />
         <ProgressCard
           label="Weekly"
           done={(summary as DashboardSummary | undefined)?.weeklyGoals.done ?? 0}
           total={(summary as DashboardSummary | undefined)?.weeklyGoals.total ?? 0}
+          styles={styles}
         />
         <ProgressCard
           label="Monthly"
           done={(summary as DashboardSummary | undefined)?.monthlyGoals.done ?? 0}
           total={(summary as DashboardSummary | undefined)?.monthlyGoals.total ?? 0}
+          styles={styles}
         />
       </View>
 
@@ -159,7 +173,7 @@ export default function TodayScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} size="large" />
+        <ActivityIndicator style={{ marginTop: 40 }} size="large" color={colors.primary} />
       ) : (
         <FlatList
           data={todos as Todo[]}
@@ -178,7 +192,7 @@ export default function TodayScreen() {
                       {items.map((h) => (
                         <Pressable
                           key={h.id}
-                          style={styles.item}
+                          style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
                           onPress={() => toggleHabit(h)}
                         >
                           <View style={styles.itemMain}>
@@ -188,7 +202,10 @@ export default function TodayScreen() {
                             </Text>
                           </View>
                           {h.streak > 0 && (
-                            <Text style={styles.streak}>🔥 {h.streak}</Text>
+                            <View style={styles.streakRow}>
+                              <Ionicons name="flame" size={14} color={colors.warning} />
+                              <Text style={styles.streak}>{h.streak}</Text>
+                            </View>
                           )}
                         </Pressable>
                       ))}
@@ -204,14 +221,17 @@ export default function TodayScreen() {
           }
           renderItem={({ item }) => (
             <View style={styles.item}>
-              <Pressable style={styles.itemMain} onPress={() => toggle(item)}>
+              <Pressable
+                style={({ pressed }) => [styles.itemMain, pressed && styles.itemPressed]}
+                onPress={() => toggle(item)}
+              >
                 <Checkbox checked={item.done} />
                 <Text style={[styles.itemText, item.done && styles.itemDone]}>
                   {item.title}
                 </Text>
               </Pressable>
               <Pressable onPress={() => remove(item)} hitSlop={10}>
-                <Text style={styles.delete}>✕</Text>
+                <Ionicons name="trash-outline" size={18} color={colors.disabledText} />
               </Pressable>
             </View>
           )}
@@ -221,50 +241,53 @@ export default function TodayScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.lg,
-  },
-  title: typography.screenTitle,
-  muted: { color: colors.muted, marginTop: 2 },
-  settings: { color: colors.primary, fontWeight: '600' },
-  cards: { flexDirection: 'row', gap: spacing.sm + 2, marginBottom: spacing.lg },
-  card: {
-    flex: 1,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    alignItems: 'center',
-  },
-  cardLabel: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  cardValue: { fontSize: 22, fontWeight: '700', color: colors.ink, marginTop: spacing.xs },
-  cardValueDone: { color: colors.success },
-  habitsBlock: { marginBottom: spacing.md },
-  habitSection: { marginBottom: spacing.sm },
-  habitSectionName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
-    marginTop: spacing.xs + 2,
-    marginBottom: 2,
-  },
-  streak: { color: colors.warning, fontWeight: '700', fontSize: 13 },
-  addRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
-  input: { flex: 1 },
-  addBtn: { minWidth: 64 },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md + 2,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-  },
-  itemMain: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: spacing.md },
-  itemText: { fontSize: 16, flex: 1, color: colors.ink },
-  itemDone: { textDecorationLine: 'line-through', color: colors.faint },
-  delete: { color: colors.disabledText, fontSize: 18, paddingHorizontal: spacing.xs },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: spacing.lg,
+    },
+    title: typography.screenTitle,
+    muted: { color: colors.muted, marginTop: 2 },
+    settings: { color: colors.primary, fontWeight: '600' },
+    cards: { flexDirection: 'row', gap: spacing.sm + 2, marginBottom: spacing.lg },
+    card: {
+      flex: 1,
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radius.lg,
+      padding: spacing.lg,
+      alignItems: 'center',
+    },
+    cardLabel: { color: colors.muted, fontSize: 12, fontWeight: '600' },
+    cardValue: { fontSize: 22, fontWeight: '700', color: colors.ink, marginTop: spacing.xs },
+    cardValueDone: { color: colors.success },
+    habitsBlock: { marginBottom: spacing.md },
+    habitSection: { marginBottom: spacing.sm },
+    habitSectionName: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+      marginTop: spacing.xs + 2,
+      marginBottom: 2,
+    },
+    streakRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+    streak: { color: colors.warning, fontWeight: '700', fontSize: 13 },
+    addRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
+    input: { flex: 1 },
+    addBtn: { minWidth: 64 },
+    item: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.md + 2,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    itemMain: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: spacing.md },
+    itemPressed: { opacity: 0.6 },
+    itemText: { fontSize: 16, flex: 1, color: colors.ink },
+    itemDone: { textDecorationLine: 'line-through', color: colors.faint },
+  });
+}

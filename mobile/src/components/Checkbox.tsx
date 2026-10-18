@@ -1,5 +1,8 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, radius } from '../theme/theme';
+import { useEffect, useMemo, useRef } from 'react';
+import { Animated, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../theme/theme-context';
+import { Colors, radius } from '../theme/theme';
 
 interface CheckboxProps {
   checked: boolean;
@@ -8,6 +11,19 @@ interface CheckboxProps {
 
 /** Square check indicator used across todo/goal/habit lists. */
 export function Checkbox({ checked, size = 24 }: CheckboxProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const scale = useRef(new Animated.Value(checked ? 1 : 0.6)).current;
+
+  useEffect(() => {
+    Animated.spring(scale, {
+      toValue: checked ? 1 : 0.6,
+      useNativeDriver: true,
+      friction: 5,
+      tension: 200,
+    }).start();
+  }, [checked, scale]);
+
   return (
     <View
       style={[
@@ -16,19 +32,24 @@ export function Checkbox({ checked, size = 24 }: CheckboxProps) {
         checked && styles.boxChecked,
       ]}
     >
-      {checked && <Text style={styles.mark}>✓</Text>}
+      {checked && (
+        <Animated.View style={{ transform: [{ scale }] }}>
+          <Ionicons name="checkmark" size={size * 0.7} color={colors.onDark} />
+        </Animated.View>
+      )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  box: {
-    borderRadius: radius.sm,
-    borderWidth: 2,
-    borderColor: colors.faint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  boxChecked: { backgroundColor: colors.success, borderColor: colors.success },
-  mark: { color: '#fff', fontWeight: '700', fontSize: 14 },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    box: {
+      borderRadius: radius.sm,
+      borderWidth: 2,
+      borderColor: colors.faint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    boxChecked: { backgroundColor: colors.success, borderColor: colors.success },
+  });
+}

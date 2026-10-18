@@ -1,5 +1,7 @@
-import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import { colors, radius } from '../theme/theme';
+import { useEffect, useMemo, useRef } from 'react';
+import { Animated, StyleProp, StyleSheet, ViewStyle } from 'react-native';
+import { useTheme } from '../theme/theme-context';
+import { Colors, radius } from '../theme/theme';
 
 interface ProgressBarProps {
   /** 0..100 */
@@ -10,35 +12,57 @@ interface ProgressBarProps {
   style?: StyleProp<ViewStyle>;
 }
 
-/** Simple horizontal progress bar clamped to 0..100. */
+/** Horizontal progress bar, clamped to 0..100, that animates between values. */
 export function ProgressBar({
   percent,
-  color = colors.primary,
-  trackColor = colors.border,
+  color,
+  trackColor,
   height = 8,
   style,
 }: ProgressBarProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const fillColor = color ?? colors.primary;
+  const fillTrackColor = trackColor ?? colors.border;
+
   const clamped = Math.max(0, Math.min(100, percent));
+  const animated = useRef(new Animated.Value(clamped)).current;
+
+  useEffect(() => {
+    Animated.timing(animated, {
+      toValue: clamped,
+      duration: 350,
+      useNativeDriver: false,
+    }).start();
+  }, [clamped, animated]);
+
+  const width = animated.interpolate({
+    inputRange: [0, 100],
+    outputRange: ['0%', '100%'],
+  });
+
   return (
-    <View
+    <Animated.View
       style={[
         styles.track,
-        { height, borderRadius: height / 2, backgroundColor: trackColor },
+        { height, borderRadius: height / 2, backgroundColor: fillTrackColor },
         style,
       ]}
     >
-      <View
+      <Animated.View
         style={{
-          width: `${clamped}%`,
+          width,
           height: '100%',
-          backgroundColor: color,
+          backgroundColor: fillColor,
           borderRadius: radius.pill,
         }}
       />
-    </View>
+    </Animated.View>
   );
 }
 
-const styles = StyleSheet.create({
-  track: { width: '100%', overflow: 'hidden' },
-});
+function createStyles(_colors: Colors) {
+  return StyleSheet.create({
+    track: { width: '100%', overflow: 'hidden' },
+  });
+}
